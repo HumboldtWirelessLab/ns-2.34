@@ -203,6 +203,9 @@ void LL::sendDown(Packet* p)
 			tx = arptable_->arpresolve(dst, p, this);
 			break;
 		}
+		if (PT_RAW == ch->ptype()) {
+			break;
+		}
 		//if (varp_) {
 		//tx = varp_->arpresolve(dst, p);
 		//break;

@@ -68,6 +68,9 @@ TK_TCL_PLACES=" \
                 /usr/share/tk$TK_VERS \
                 /usr/share/tk$TK_ALT_VERS \
                 /usr/share/tk$TK_HI_VERS \
+                /usr/share/tcltk/tk$TK_VERS \
+                /usr/share/tcltk/tk$TK_ALT_VERS \
+                /usr/share/tcltk/tk$TK_HI_VERS \
                 /usr/share/tk \
 		../tk$TK_OLD_VERS/library \
                 ../tk$TK_OLD_ALT_VERS/library \

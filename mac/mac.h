@@ -179,7 +179,10 @@ public:
 	virtual void sendUp(Packet *p);
 
 	virtual void resume(Packet* p = 0);
-	virtual void installTap(Tap *t) { tap_ = t; }
+	virtual void installTap(Tap *t,bool filterown = false) {
+		tap_ = t;
+		tap_filterown_ = filterown;
+	}
 	
 	inline double txtime(int bytes) {
 		return (8. * bytes / bandwidth_);
@@ -233,6 +236,7 @@ protected:
         
 	Phy *netif_;            // network interface
         Tap *tap_;              // tap agent
+	bool tap_filterown_;    // filter tap packets destined for use anyhow
 	LL *ll_;             	// LL this MAC is connected to
 	Channel *channel_;	// channel this MAC is connected to
 

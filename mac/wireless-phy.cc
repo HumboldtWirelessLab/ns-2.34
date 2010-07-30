@@ -37,9 +37,13 @@
  * Ported from CMU/Monarch's code, nov'98 -Padma Haldar.
  * wireless-phy.cc
  */
-
+/*
+ *	Modified by Nicolas Letor to support wifi elements.
+ * 	Performance Analysis of Telecommunication Systems (PATS) research group,
+ * 	Interdisciplinary Institute for Broadband Technology (IBBT) & Universiteit Antwerpen.
+ */
 #include <math.h>
-
+#include <limits>
 #include <packet.h>
 
 #include <mobilenode.h>
@@ -55,6 +59,8 @@
 #include <sys/param.h>  /* for MIN/MAX */
 
 #include "diffusion/diff_header.h"
+#include "rawpacket.h"
+#include "packet_anno.h"
 
 void Sleep_Timer::expire(Event *) {
 	a_->UpdateSleepEnergy();
@@ -98,6 +104,28 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 	bind("freq_", &freq_);
 	bind("L_", &L_);
 	
+	// nletor -- multirate madwifi configuration
+	RateCount_ = 0;
+	bind("RateCount_",&RateCount_);
+	if (RateCount_ > 0) {
+		//ratelist = RateList(RateCount_);
+		//rxlist = RXList(RateCount_);
+		char buffer[32];
+		for (int i=0; i< RateCount_; i++) {
+				double rate;
+				sprintf(buffer,"Rate%d",i);
+				bind_bw(buffer,&rate);
+				ratelist.push_back(rate);
+				
+				double thr;
+				sprintf(buffer,"RXThresh%d",i);
+				bind(buffer,&thr);
+				rxlist.push_back(thr);
+		}
+
+	}
+	//!nletor
+
 	lambda_ = SPEED_OF_LIGHT / freq_;
 
 	node_ = 0;
@@ -135,6 +163,7 @@ int
 WirelessPhy::command(int argc, const char*const* argv)
 {
 	TclObject *obj; 
+	Tcl& tcl = Tcl::instance();
 
 	if (argc==2) {
 		if (strcasecmp(argv[1], "NodeOn") == 0) {
@@ -157,7 +186,11 @@ WirelessPhy::command(int argc, const char*const* argv)
 				update_energy_time_ = NOW;
 			}
 			return TCL_OK;
+		} else if (strcasecmp(argv[1], "getantenna") == 0) {
+			tcl.result(ant_->name());
+			return TCL_OK;
 		}
+
 	} else if(argc == 3) {
 		if (strcasecmp(argv[1], "setTxPower") == 0) {
 			Pt_consume_ = atof(argv[2]);
@@ -200,6 +233,9 @@ WirelessPhy::command(int argc, const char*const* argv)
 	return Phy::command(argc,argv);
 }
  
+click_wifi_extra* 
+getWifiExtra(Packet* p);
+
 void 
 WirelessPhy::sendDown(Packet *p)
 {
@@ -314,6 +350,22 @@ WirelessPhy::sendUp(Packet *p)
 	 */
 	assert(initialized());
 
+	//unsigned char* pdat = p->accessdata();
+	
+	click_wifi_extra *ceh = 0;
+	struct hdr_cmn* chdr = HDR_CMN(p);
+	if (chdr->ptype() == PT_RAW){
+		hdr_raw* rhdr = hdr_raw::access(p);
+		if (rhdr->subtype == hdr_raw::MADWIFI) {
+			ceh = (click_wifi_extra*)(p->accessdata());
+			//u_int8_t rate = ceh->rate;
+			memset(ceh,0,sizeof(click_wifi_extra));
+			ceh->rate = int(p->txinfo_.getRate()/500000);
+			ceh->magic = WIFI_EXTRA_MAGIC;
+			//printf("Rate is %e Rate is %i and %i %i \n",p->txinfo_.getRate(),rate,int(p->txinfo_.getRate()/500000),ceh->rate);
+		} 
+	} 
+
 	PacketStamp s;
 	double Pr;
 	int pkt_recvd = 0;
@@ -344,11 +396,36 @@ WirelessPhy::sendUp(Packet *p)
 	if(propagation_) {
 		s.stamp((MobileNode*)node(), ant_, 0, lambda_);
 		Pr = propagation_->Pr(&p->txinfo_, &s, this);
+		if(ceh != 0){	
+			//analog to atheros formule -95dBm is lowest sens.
+			double LPr = (10 * log(Pr * 1000));
+			double LRXThr = (10 * log(RXThresh_ * 1000));
+			if (LPr < numeric_limits<double>::infinity()){
+				ceh->rssi = (short int)( (LPr - LRXThr ) * (60.0/100.0) );	
+				ceh->rssi = (ceh->rssi > 60) ? 60 : ceh->rssi;
+			} else {
+				ceh->rssi = 60;
+			}			
+		}
+
 		if (Pr < CSThresh_) {
 			pkt_recvd = 0;
 			goto DONE;
 		}
-		if (Pr < RXThresh_) {
+
+
+		double RXThr = RXThresh_; //rxlist[RateCount_ - 1];
+		
+		// compare to correct rate,moet nog aan gesleuteld worden
+		for (int i = 0; i < RateCount_; i++){
+			if (ratelist[i] >= p->txinfo_.getRate()){
+				RXThr = rxlist[i]; 	
+			}	
+		}
+		//printf("Rate is %e Pr is %e RXThr is %e\n",p->txinfo_.getRate(),Pr,RXThr);
+		
+		if (RateCount_ > 0 ) { 
+			if (Pr < RXThr) {
 			/*
 			 * We can detect, but not successfully receive
 			 * this packet.
@@ -362,10 +439,29 @@ WirelessPhy::sendUp(Packet *p)
 			       Pr,RXThresh);
 #endif
 		}
+		} else {
+			if (Pr < RXThresh_) {
+				/*
+				 * We can detect, but not successfully receive
+				 * this packet.
+				 */
+				hdr_cmn *hdr = HDR_CMN(p);
+				hdr->error() = 1;
+			#if DEBUG > 3
+				printf("SM %f.9 _%d_ drop pkt from %d low POWER %e/%e\n",
+				       Scheduler::instance().clock(), node()->index(),
+				       p->txinfo_.getNode()->index(),
+				       Pr,RXThresh);
+			#endif
+			}
+		}
 	}
 	if(modulation_) {
 		hdr_cmn *hdr = HDR_CMN(p);
 		hdr->error() = modulation_->BitError(Pr);
+		if(ceh != 0){
+			ceh->flags |= WIFI_EXTRA_RX_ERR;	
+		}
 	}
 	
 	/*

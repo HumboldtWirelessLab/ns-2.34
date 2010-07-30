@@ -104,7 +104,8 @@ void UdpAgent::sendmsg(int nbytes, AppData* data, const char* flags)
 		if (flags && (0 ==strcmp(flags, "NEW_BURST")))
 			rh->flags() |= RTP_M;
 		p->setdata(data);
-		target_->recv(p);
+		//target_->recv(p);
+		Agent::send(p,0);
 	}
 	n = nbytes % size_;
 	if (n > 0) {
@@ -119,7 +120,8 @@ void UdpAgent::sendmsg(int nbytes, AppData* data, const char* flags)
 		if (flags && (0 == strcmp(flags, "NEW_BURST")))
 			rh->flags() |= RTP_M;
 		p->setdata(data);
-		target_->recv(p);
+		//target_->recv(p);
+		Agent::send(p,0);
 	}
 	idle();
 }

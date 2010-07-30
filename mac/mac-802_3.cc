@@ -298,10 +298,6 @@ void Mac802_3::recv_complete(Packet *p) {
 	hdr_mac *mh= HDR_MAC(p);
 	int dst= mh->macDA();
 
-	if ((dst != BCAST_ADDR) && (dst != index_)) {
-		Packet::free(p);
-		goto done;
-	}
 	/* Strip off the mac header and padding if any */
 	ch->size() -= (ETHER_HDR_LEN + mh->padding_);
 
@@ -314,6 +310,19 @@ void Mac802_3::recv_complete(Packet *p) {
 		goto done;
 	}
 
+	/* tap out - */
+	if (tap_) {
+		if (!tap_filterown_ ||
+		    ((dst != index_) && (dst != BCAST_ADDR))) {
+			tap_->tap(p);
+		}
+	}
+
+
+	if ((dst != BCAST_ADDR) && (dst != index_)) {
+		Packet::free(p);
+		goto done;
+	}
 
 	/* we could schedule an event to account for mac-delay */
 	

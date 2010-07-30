@@ -157,6 +157,10 @@ class OmniMcast_Entry {
 
 
 
+void OmniMcastXmitFailedCallback(Packet *pkt, void *data);
+
+class OmniMcastArpBufferTimer;
+class OmniMcastSendBufTimer;
 
 class OmniMcastAgent : public Agent {
  public:

@@ -115,6 +115,7 @@ foreach prot {
 	Common 
 	Flags
 	IP 	# IP
+	Raw	# nsclick: raw packet type
 # Routing Protocols:
 	NV 	# NixVector classifier for stateless routing 
 	rtProtoDV 	# distance vector routing protocol

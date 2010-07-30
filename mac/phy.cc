@@ -68,6 +68,16 @@ Phy::command(int argc, const char*const* argv) {
 			tcl.resultf("%d", index_);
 			return TCL_OK;
 		}
+		
+		if (strcmp(argv[1],"getchannel") == 0) {
+			if (channel_) {
+				tcl.resultf("%s",channel_->name());
+			}
+			else {
+				tcl.resultf("%s","");
+			}
+			return TCL_OK;
+		}
 	}
 
 	else if(argc == 3) {

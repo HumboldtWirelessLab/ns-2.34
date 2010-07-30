@@ -218,6 +218,7 @@ void Queue::resume()
 			utilUpdate(last_change_, now, blocked_);
 			last_change_ = now;
 			blocked_ = 0;
+			on_unblock();
 		}
 		else {
 			utilUpdate(last_change_, now, blocked_);
@@ -225,6 +226,10 @@ void Queue::resume()
 			blocked_ = 1;
 		}
 	}
+}
+
+void Queue::on_unblock() {
+	// Do nothing in base class
 }
 
 void Queue::reset()

@@ -34,7 +34,7 @@
  * "@(#) $Header: /cvsroot/nsnam/ns-2/tools/random.cc,v 1.21 2006/12/17 15:12:37 mweigle Exp $ (LBL)";
  */
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(ALLOW_RANDOM)
 
 #include <sys/time.h>
 #include "config.h"

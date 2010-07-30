@@ -182,8 +182,11 @@ static const packet_t PT_BLTRACE = 60;
 	// AOMDV packet
 static const packet_t PT_AOMDV = 61;
 
+	// nsclick RAW packet
+	static const packet_t PT_RAW = 62;
+
         // insert new packet types here
-static packet_t       PT_NTYPE = 62; // This MUST be the LAST one
+static packet_t       PT_NTYPE = 63; // This MUST be the LAST one
 
 enum packetClass
 {
@@ -286,6 +289,7 @@ public:
 		nPkt_ = PT_NTYPE+1;
 		
 
+		name_[PT_RAW] = "raw";
 		name_[PT_TCP]= "tcp";
 		name_[PT_UDP]= "udp";
 		name_[PT_CBR]= "cbr";
@@ -656,6 +660,7 @@ public:
 inline void Packet::init(Packet* p)
 {
 	bzero(p->bits_, hdrlen_);
+	p->txinfo_.clear();
 }
 
 inline Packet* Packet::alloc()

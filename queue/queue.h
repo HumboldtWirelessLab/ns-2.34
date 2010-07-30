@@ -145,6 +145,7 @@ public:
 protected:
 	Queue();
 	void reset();
+	virtual void on_unblock();
 	int qlim_;		/* maximum allowed pkts in queue */
 	int blocked_;		/* blocked now? */
 	int unblock_on_resume_;	/* unblock q on idle? */

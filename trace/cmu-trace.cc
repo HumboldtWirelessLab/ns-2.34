@@ -55,6 +55,7 @@
 #include <aomdv/aomdv_packet.h>
 #include <cmu-trace.h>
 #include <mobilenode.h>
+#include <rawpacket.h>
 #include <simulator.h>
 //<zheng: add for 802.15.4>
 #include "wpan/p802_15_4pkt.h"
@@ -1061,6 +1062,20 @@ CMUTrace::format_aomdv(Packet *p, int offset)
 	}
 }
 
+// XXX Fix this
+void
+CMUTrace::format_raw(Packet *p, int offset)
+{
+        //struct hdr_cmn *ch = HDR_CMN(p);
+        //struct hdr_tcp *th = HDR_TCP(p);
+        
+        if( newtrace_ ) {
+                sprintf(pt_->buffer() + offset,"raw ");
+        } else {
+                sprintf(pt_->buffer() + offset,"raw ");
+        }
+}
+
 void
 CMUTrace::nam_format(Packet *p, int offset)
 {
@@ -1305,6 +1320,12 @@ void CMUTrace::format(Packet* p, const char *why)
 	hdr_cmn *ch = HDR_CMN(p);
 	int offset = 0;
 
+	int israw = (PT_RAW == ch->ptype());
+ 	hdr_raw* rhdr = hdr_raw::access(p);	
+	if (israw) {
+	    ch->ptype() = (packet_t) rhdr->ns_type;
+	}
+
 	/*
 	 * Log the MAC Header
 	 */
@@ -1313,6 +1334,8 @@ void CMUTrace::format(Packet* p, const char *why)
 	if (pt_->namchannel()) 
 		nam_format(p, offset);
 	offset = strlen(pt_->buffer());
+
+
 	switch(ch->ptype()) {
 	case PT_MAC:
 	case PT_SMAC:
@@ -1324,6 +1347,9 @@ void CMUTrace::format(Packet* p, const char *why)
 		format_ip(p, offset);
 		offset = strlen(pt_->buffer());
 		switch(ch->ptype()) {
+		case PT_RAW:
+			format_raw(p, offset);
+			break;
 		case PT_AODV:
 			format_aodv(p, offset);
 			break;
@@ -1373,6 +1399,9 @@ void CMUTrace::format(Packet* p, const char *why)
 		</zheng: del>*/
 			break;		//zheng: add
 		}
+	}
+	if (israw) {
+	    ch->ptype() = PT_RAW;
 	}
 }
 

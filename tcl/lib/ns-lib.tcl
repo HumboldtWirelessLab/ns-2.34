@@ -208,6 +208,8 @@ source ../mpls/ns-mpls-classifier.tcl
 source ns-default.tcl
 source ../emulate/ns-emulate.tcl
 
+source ns-clicknode.tcl
+
 #pushback
 source ns-pushback.tcl
 

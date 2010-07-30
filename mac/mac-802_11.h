@@ -43,7 +43,6 @@
 // Added by Sushmita to support event tracing (singal@nunki.usc.edu)
 #include "address.h"
 #include "ip.h"
-
 #include "mac-timers.h"
 #include "marshall.h"
 #include <math.h>

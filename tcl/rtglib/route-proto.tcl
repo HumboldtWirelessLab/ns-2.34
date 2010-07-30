@@ -739,6 +739,15 @@ Agent/rtProto/Manual proc pre-init-all args {
 Agent/rtProto/Manual proc init-all args {
     # The user will do all routing.
 }
+#
+# Empty. Does NOTHING - even less than the Manual routing.
+#
+Class Agent/rtProto/Empty -superclass Agent/rtProto
+
+Agent/rtProto/Empty proc init-all args {
+    # Do nothing
+}
+
 
 ### Local Variables:
 ### mode: tcl

@@ -110,6 +110,12 @@ protected:
 
 LIST_HEAD(DSRAgent_List, DSRAgent);
 
+void XmitFailureCallback(Packet *pkt, void *data);
+void XmitFlowFailureCallback(Packet *pkt, void *data);
+int FilterFailure(Packet *p, void *data);
+class SendBufferTimer;
+
+
 class DSRAgent : public Tap, public Agent {
 public:
 

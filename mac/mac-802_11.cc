@@ -39,9 +39,17 @@
  *   - Sushmita
  */
 
+/*
+ *	Modified by Nicolas Letor to support wifi elements.
+ * 	Performance Analysis of Telecommunication Systems (PATS) research group,
+ * 	Interdisciplinary Institute for Broadband Technology (IBBT) & Universiteit Antwerpen.
+ */
 #include "delay.h"
 #include "connector.h"
+#include "agent.h"
 #include "packet.h"
+#include "rawpacket.h"
+#include "packet_anno.h"
 #include "random.h"
 #include "mobilenode.h"
 
@@ -1054,6 +1062,39 @@ Mac802_11::check_pktTx()
 	transmit(pktTx_, timeout);
 	return 0;
 }
+
+// helper function
+click_wifi_extra* 
+getWifiExtra(Packet* p)
+{
+  	struct hdr_cmn* chdr = HDR_CMN(p);
+	if (chdr->ptype() == PT_RAW){
+		hdr_raw* rhdr = hdr_raw::access(p);
+		if (rhdr->subtype == hdr_raw::MADWIFI) {
+			click_wifi_extra* ceh = (click_wifi_extra*)(p->accessdata());
+			if (ceh->magic == WIFI_EXTRA_MAGIC){
+				return ceh;
+			}			
+		}
+	}
+	return 0;
+}
+
+click_wifi* 
+getWifi(Packet* p)
+{
+  	struct hdr_cmn* chdr = HDR_CMN(p);
+	if (chdr->ptype() == PT_RAW){
+		hdr_raw* rhdr = hdr_raw::access(p);
+		if (rhdr->subtype == hdr_raw::MADWIFI) {
+			click_wifi_extra* ceh = (click_wifi_extra*)(p->accessdata());
+			if (ceh->magic == WIFI_EXTRA_MAGIC){
+				return (click_wifi*)(p->accessdata() + sizeof(click_wifi_extra));
+			}			
+		}
+	}
+	return 0;
+}
 /*
  * Low-level transmit functions that actually place the packet onto
  * the channel.
@@ -1072,10 +1113,26 @@ Mac802_11::sendRTS(int dst)
 	 *  If the size of the packet is larger than the
 	 *  RTSThreshold, then perform the RTS/CTS exchange.
 	 */
-	if( (u_int32_t) HDR_CMN(pktTx_)->size() < macmib_.getRTSThreshold() ||
+	click_wifi_extra* ceh = getWifiExtra(pktTx_);
+	if ((ceh != 0) && ((u_int32_t) dst != MAC_BROADCAST)) { 	
+		// madwifi case
+		if (!(ceh->flags & WIFI_EXTRA_DO_RTS_CTS)) {
+			Packet::free(p);
+			//p = 0;
+			return;
+		}
+		
+		if	( ceh->power > 0){
+			p->txinfo_.setPrLevel(ceh->power);	
+		}
+
+	} else {
+		// normal case
+		if( (u_int32_t) HDR_CMN(pktTx_)->size() < macmib_.getRTSThreshold() ||
             (u_int32_t) dst == MAC_BROADCAST) {
-		Packet::free(p);
-		return;
+			Packet::free(p);
+			return;
+		}
 	}
 
 	ch->uid() = 0;
@@ -1219,6 +1276,7 @@ Mac802_11::sendDATA(Packet *p)
 	/*
 	 * Update the MAC header
 	 */
+	click_wifi_extra* ceh = getWifiExtra(p);
 	ch->size() += phymib_.getHdrLen11();
 
 	dh->dh_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -1247,6 +1305,20 @@ Mac802_11::sendDATA(Packet *p)
 	if(dst != MAC_BROADCAST) {
 		/* store data tx time for unicast packets */
 		ch->txtime() = txtime(ch->size(), dataRate_);
+		p->txinfo_.setRate(dataRate_);
+
+		// nsmadwifi
+		if ( ceh != 0 ){
+			
+			if ( ceh->rate > 0){
+				double rate = ((short int)(ceh->rate))*500000; 
+				ch->txtime() = txtime(ch->size(),rate);
+				p->txinfo_.setRate(rate);
+			}
+			if	( ceh->power > 0){
+				p->txinfo_.setPrLevel(ceh->power);	
+			}
+		}
 		
 		dh->dh_duration = usec(txtime(phymib_.getACKlen(), basicRate_)
 				       + phymib_.getSIFS());
@@ -1256,6 +1328,7 @@ Mac802_11::sendDATA(Packet *p)
 	} else {
 		/* store data tx time for broadcast packets (see 9.6) */
 		ch->txtime() = txtime(ch->size(), basicRate_);
+		p->txinfo_.setRate(basicRate_);
 		
 		dh->dh_duration = 0;
 	}
@@ -1276,7 +1349,25 @@ Mac802_11::RetransmitRTS()
 
 	ssrc_ += 1;			// STA Short Retry Count
 		
+	bool failure = false;
+	double count = ssrc_;
+
+	click_wifi_extra* ceh = getWifiExtra(pktTx_);
+	if ((ceh != 0) && (ceh->max_tries != 0)){
+		ceh->retries = ssrc_;
+		if (count <= ceh->max_tries){
+		
+		} else {
+			failure = true;	
+		}
+	} else {
 	if(ssrc_ >= macmib_.getShortRetryLimit()) {
+			failure = true;	
+		}	
+	}
+
+
+	if(failure){
 		discard(pktRTS_, DROP_MAC_RETRY_COUNT_EXCEEDED); pktRTS_ = 0;
 		/* tell the callback the send operation failed 
 		   before discarding the packet */
@@ -1292,7 +1383,24 @@ Mac802_11::RetransmitRTS()
                         ch->xmit_failure_(pktTx_->copy(),
                                           ch->xmit_failure_data_);
                 }
+
+		if (ceh != 0){
+			Packet* p2 = pktTx_->copy();
+			click_wifi_extra* ceh2 = getWifiExtra(p2);
+			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
+			ceh2->flags |= WIFI_EXTRA_TX;
+			struct hdr_cmn* ch2 = HDR_CMN(p2); 
+			ch2->direction() = hdr_cmn::UP; 
+			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
 		discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			uptarget_->recv(p2, (Handler*) 0);
+		
+		} else {
+			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+		}
+		
+		pktRTS_ = 0;
 		pktTx_ = 0;
 		ssrc_ = 0;
 		rst_cw();
@@ -1361,7 +1469,44 @@ Mac802_11::RetransmitDATA()
 		sendPROBEREQ(MAC_BROADCAST);
 		return;
 	}	
-	if(*rcount >= thresh) {
+	bool failure = false;
+	double count = *rcount;
+	click_wifi_extra* ceh = getWifiExtra(pktTx_);
+
+	if ((ceh != 0) && (ceh->max_tries != 0)){
+		ceh->retries = (*rcount);
+			
+		if (count <= ceh->max_tries){
+			double rate = ((short int)(ceh->rate))*500000; 
+			ch->txtime() = txtime(ch->size(),rate);
+			pktTx_->txinfo_.setRate(rate);
+		} else if ( (count-=ceh->max_tries) <= ceh->max_tries1 ){
+			double rate = ((short int)(ceh->rate1))*500000; 
+			ch->txtime() = txtime(ch->size(),rate);
+			pktTx_->txinfo_.setRate(rate);
+			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
+		} else if ( (count-=ceh->max_tries1) <= ceh->max_tries2 ){
+			double rate = ((short int)(ceh->rate2))*500000; 
+			ch->txtime() = txtime(ch->size(),rate);
+			pktTx_->txinfo_.setRate(rate);
+			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
+		} else if ( (count-=ceh->max_tries2) <= ceh->max_tries3 ){
+			double rate = ((short int)(ceh->rate3))*500000; 
+			ch->txtime() = txtime(ch->size(),rate);
+			pktTx_->txinfo_.setRate(rate);
+			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
+		} else {
+			failure = true;	
+		}
+		
+	} else {
+		if(*rcount >= thresh) {
+			failure = true;	
+		}	
+	}
+
+	//if(*rcount >= thresh) {
+	if(failure){
 		/* IEEE Spec section 9.2.3.5 says this should be greater than
 		   or equal */
 		macmib_.FailedCount++;
@@ -1375,7 +1520,24 @@ Mac802_11::RetransmitDATA()
                                           ch->xmit_failure_data_);
                 }
 
-		discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+		if (ceh != 0){
+			Packet* p2 = pktTx_->copy();
+			click_wifi_extra* ceh2 = getWifiExtra(p2);
+			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
+			ceh2->flags |= WIFI_EXTRA_TX;
+			struct hdr_cmn* ch2 = HDR_CMN(p2); 
+			ch2->direction() = hdr_cmn::UP; 
+			
+			// drop packet first
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			// send feedback to madwifi 
+			uptarget_->recv(p2, (Handler*) 0);
+		
+		} else {
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			//printf("(%d)DATA discarded: count exceeded\n",index_);
+		}
+		
 		pktTx_ = 0;
 		*rcount = 0;
 		rst_cw();
@@ -1384,7 +1546,13 @@ Mac802_11::RetransmitDATA()
 		struct hdr_mac802_11 *dh;
 		dh = HDR_MAC802_11(pktTx_);
 		dh->dh_fc.fc_retry = 1;
-
+		
+		// nletor
+		click_wifi* cwh = getWifi(pktTx_);
+		if (cwh != 0){
+			cwh->i_fc[1] |= WIFI_FC1_RETRY;	
+		}
+		//!nletor 
 
 		sendRTS(ETHER_ADDR(mh->dh_ra));
 		inc_cw();
@@ -1584,6 +1752,8 @@ Mac802_11::recv(Packet *p, Handler *h)
 	 *
 	 */
 
+	click_wifi_extra* rceh = getWifiExtra(p);
+
 	/*
 	 *  If the interface is currently in transmit mode, then
 	 *  it probably won't even see this packet.  However, the
@@ -1593,6 +1763,9 @@ Mac802_11::recv(Packet *p, Handler *h)
 	 */
 	if(tx_active_ && hdr->error() == 0) {
 		hdr->error() = 1;
+		if(rceh != 0 && hdr->error()){
+			rceh->flags |= WIFI_EXTRA_RX_ERR;
+		}
 	}
 
 	if(rx_state_ == MAC_IDLE) {
@@ -1678,8 +1851,12 @@ Mac802_11::recv_timer()
 
         /* tap out - */
         if (tap_ && type == MAC_Type_Data &&
-            MAC_Subtype_Data == subtype ) 
-		tap_->tap(pktRx_);
+            MAC_Subtype_Data == subtype ) {
+		if (!tap_filterown_ ||
+		    ((dst != (u_int32_t)index_) && (dst != MAC_BROADCAST))) {
+			tap_->tap(pktRx_);
+		}
+	}
 	/*
 	 * Adaptive Fidelity Algorithm Support - neighborhood infomation 
 	 * collection
@@ -1905,6 +2082,7 @@ Mac802_11::recvDATA(Packet *p)
 	 * Adjust the MAC packet size - ie; strip
 	 * off the mac header
 	 */
+	click_wifi_extra* rceh = getWifiExtra(p);
 	ch->size() -= phymib_.getHdrLen11();
 	ch->num_forwards() += 1;
 
@@ -1912,7 +2090,9 @@ Mac802_11::recvDATA(Packet *p)
 	 *  If we sent a CTS, clean up...
 	 */
 	if(dst != MAC_BROADCAST) {
-		if(size >= macmib_.getRTSThreshold()) {
+		//if(size >= macmib_.getRTSThreshold()) {
+		if ( 	(!rceh && size >= macmib_.getRTSThreshold()) ||
+			 	( rceh && pktCTRL_)){
 			if (tx_state_ == MAC_CTS) {
 				assert(pktCTRL_);
 				Packet::free(pktCTRL_); pktCTRL_ = 0;
@@ -2063,7 +2243,9 @@ Mac802_11::recvACK(Packet *p)
 			assert(mhBackoff_.busy() == 0);
 			mhBackoff_.start(cw_, is_idle());
 		}
-		goto done;
+		tx_resume();
+		mac_log(p);
+		return;
 	}
 	if(tx_state_ != MAC_SEND) {
 		discard(p, DROP_MAC_INVALID_STATE);
@@ -2071,6 +2253,17 @@ Mac802_11::recvACK(Packet *p)
 	}
 	assert(pktTx_);
 
+	// nletor
+	Packet* p2 = 0;	//prepare feedback WIFI_EXTRA_TX
+	click_wifi_extra* ceh = getWifiExtra(pktTx_);
+	if (ceh != 0){
+		p2 = pktTx_->copy();
+		click_wifi_extra* ceh2 = getWifiExtra(p2);
+		ceh2->flags |= WIFI_EXTRA_TX;
+		struct hdr_cmn* ch2 = HDR_CMN(p2); 
+		ch2->direction() = hdr_cmn::UP; 
+	} 
+	//!nletor
 	mhSend_.stop();
 
 	/*
@@ -2095,11 +2288,15 @@ Mac802_11::recvACK(Packet *p)
 
 	assert(mhBackoff_.busy() == 0);
 	mhBackoff_.start(cw_, is_idle());
-done:
 
 	tx_resume();
 
 	mac_log(p);
+	// nletor
+	if (p2 != 0 ){
+		uptarget_->recv(p2, (Handler*) 0);	// send feedback WIFI_EXTRA_TX
+	}
+	//!nletor
 }
 
 

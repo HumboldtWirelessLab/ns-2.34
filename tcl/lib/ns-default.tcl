@@ -761,6 +761,19 @@ Phy/WirelessPhy set bandwidth_ 2e6
 Phy/WirelessPhy set Pt_ 0.28183815
 Phy/WirelessPhy set freq_ 914e+6
 Phy/WirelessPhy set L_ 1.0  
+# Madwifi multirate support
+# Number of rates
+# Set 0 to disable multirate
+Phy/WirelessPhy set RateCount_ 0
+
+# Placeholder SwitchChannel function
+# This allows the WirelessInfo element in the Click router
+# to trigger a channel change.
+# Override this in your simulation script to effectively 
+# change the channel of wireless interface.
+proc SwitchChannel { i whichif whichnewchannel } {
+
+}
 
 Phy/WirelessPhyExt set CSThresh_ 6.30957e-12           ;# -82 dBm
 Phy/WirelessPhyExt set noise_floor_ 7.96159e-14        ;# -101 dBm

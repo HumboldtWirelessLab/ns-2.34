@@ -121,6 +121,12 @@ int Channel::command(int argc, const char*const* argv)
 			((Phy*) obj)->setchnl(this);
 			return TCL_OK;
 		}
+		else if(strcmp(argv[1], "delif") == 0) {
+			// Remove phy from channel
+			((Phy*) obj)->setchnl(0);
+			((Phy*) obj)->removechnl();
+			return TCL_OK;
+		}
 
 		// add interface for grid_keeper_
 		/*else if(strncasecmp(argv[1], "grid_keeper", 5) == 0) {
@@ -345,17 +351,18 @@ WirelessChannel::sendUp(Packet* p, Phy *tifp)
 						         outlist);
 	    for (i=0; i < out_index; i ++) {
 		
-		  newp = p->copy();
+		  // fix Szymon Chachulski
 		  rnode = outlist[i];
 		  propdelay = get_pdelay(tnode, rnode);
 
 		  rifp = (rnode->ifhead()).lh_first; 
 		  for(; rifp; rifp = rifp->nextnode()){
 			  if (rifp->channel() == this){
+				 newp = p->copy();
 				 s.schedule(rifp, newp, propdelay); 
-				 break;
 			  }
 		  }
+		  //!fix Szymon Chachulski
  	    }
 	    delete [] outlist; 
 	 
@@ -376,14 +383,17 @@ WirelessChannel::sendUp(Packet* p, Phy *tifp)
 			 if(rnode == tnode)
 				 continue;
 			 
-			 newp = p->copy();
-			 
+			 // fix Szymon Chachulski
 			 propdelay = get_pdelay(tnode, rnode);
 			 
 			 rifp = (rnode->ifhead()).lh_first;
 			 for(; rifp; rifp = rifp->nextnode()){
-				 s.schedule(rifp, newp, propdelay);
+				 if (rifp->channel() == this){
+					 newp = p->copy();
+					 s.schedule(rifp, newp, propdelay);
+				}
 			 }
+			//!fix Szymon Chachulski
 		 }
 		 delete [] affectedNodes;
 	 }

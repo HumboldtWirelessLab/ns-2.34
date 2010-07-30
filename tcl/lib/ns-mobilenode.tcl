@@ -706,6 +706,7 @@ Node/MobileNode instproc setTtransition { val } {
 
 
 
+
 Node/MobileNode instproc mobility-trace { ttype atype } {
 	set ns [Simulator instance]
         set tracefd [$ns get-ns-traceall]
@@ -833,6 +834,21 @@ Node/MobileNode instproc RNType args {
 	eval $ragent_ RNType $args
 }
 # </zheng: add>
+
+# change interface channel
+Node/MobileNode instproc changechannel { whichif newchan } {
+	$self instvar netif_
+	[$netif_($whichif) getchannel] delif $netif_($whichif)
+	$netif_($whichif) channel $newchan
+	$newchan addif $netif_($whichif)
+}
+
+# aim a steerable antenna
+Node/MobileNode instproc aimantenna { whichif newdir } {
+	$self instvar netif_
+	set theant [$netif_($whichif) getantenna]
+	$theant set Dir_ $newdir
+}
 
 Class SRNodeNew -superclass Node/MobileNode
 

@@ -178,4 +178,10 @@ public:
 	virtual void add_route(char *dst, NsObject *target){}
 };
 
+class ClickRoutingModule : public RoutingModule {
+public:
+        ClickRoutingModule() : RoutingModule() {}
+        virtual const char* module_name() const { return "Click"; }
+};
+
 #endif //  ns_rtmodule_h

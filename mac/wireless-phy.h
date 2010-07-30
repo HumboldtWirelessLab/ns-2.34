@@ -42,6 +42,11 @@
 #ifndef ns_WirelessPhy_h
 #define ns_WirelessPhy_h
 
+#include <vector>
+#include <map>
+typedef std::vector< double > RateList;
+typedef std::vector< double > RXList;
+
 #include "propagation.h"
 #include "modulation.h"
 #include "omni-antenna.h"
@@ -119,6 +124,7 @@ protected:
 	double RXThresh_;	// receive power threshold (W)
 	double CSThresh_;	// carrier sense threshold (W)
 	double CPThresh_;	// capture threshold (db)
+  	int RateCount_;		// number of rates
   
 	Antenna *ant_;
 	Propagation *propagation_;	// Propagation Model
@@ -144,6 +150,8 @@ private:
 
 	friend class Sleep_Timer;
 
+	RateList ratelist;
+	RXList rxlist;
 };
 
 #endif /* !ns_WirelessPhy_h */

@@ -340,6 +340,43 @@ RtModule/VC instproc register { node } {
 RtModule/VC instproc add-route { dst target } {
 }
 
+
+#
+# Click routing module. Intended to subvert the normal routing process
+# and defer to Click.
+#
+RtModule/Click instproc init {} {
+        $self next
+}
+
+RtModule/Click instproc register { node } {
+        $self next $node
+        $self make-classifier
+}
+
+RtModule/Click instproc make-classifier {} {
+        $self instvar classifier_
+        set classifier_ [new Classifier/Ext/Click]
+        [$self node] install-entry $self $classifier_
+        $classifier_ setnodename [format "node%d" [[$self node] set id_]]
+        $classifier_ setnodeaddr [[$self node] set address_]
+        [$self node] set dmux_ [new Classifier/Port]
+
+        # Always stick the kernel tap interface into slot 0
+        $classifier_ install 0 [[$self node] set dmux_]
+}
+
+RtModule/Click instproc attach { agent port } {
+        # Send target
+        $agent target [[$self node] entry]
+        # Recv target
+        [[$self node] demux] install $port $agent
+}
+
+RtModule/Click instproc detach { agent nullagent } {
+        # Empty method
+}
+
 Classifier/Virtual instproc find dst {
 	$self instvar node_
 	if {[$node_ id] == $dst} {

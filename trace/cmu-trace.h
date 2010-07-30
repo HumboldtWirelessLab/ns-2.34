@@ -159,6 +159,7 @@ private:
 	void	format_tora(Packet *p, int offset);
         void    format_imep(Packet *p, int offset);
         void    format_aodv(Packet *p, int offset);
+	void    format_raw(Packet *p, int offset);
 	void    format_aomdv(Packet *p, int offset);
 
 	// This holds all the tracers added at run-time

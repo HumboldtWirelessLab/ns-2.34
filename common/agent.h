@@ -43,6 +43,7 @@
 #include "ns-process.h"
 #include "app.h"
 //#include "basetrace.h"
+
 #define TIME_FORMAT "%.15g"
 // TIME_FORMAT is in basetrace.h, but including that header leads to problems
 
@@ -77,7 +78,14 @@ class Agent : public Connector {
 	//added for edrop tracing - ratul
 	void recvOnly(Packet *) {};
 
-	void send(Packet* p, Handler* h) { target_->recv(p, h); }
+	void send(Packet* p, Handler* h) { 
+	  if (rawcvt_) toraw(p);
+	  target_->recv(p, h);
+	}
+
+        bool toraw(Packet* p);
+	bool fromraw(Packet* p);
+
 	virtual void timeout(int tno);
 
 	virtual void sendmsg(int sz, AppData*, const char* flags = 0);
@@ -102,6 +110,7 @@ class Agent : public Connector {
 	inline nsaddr_t& dport() { return dst_.port_; }
 	void set_pkttype(packet_t pkttype) { type_ = pkttype; }
 	inline packet_t get_pkttype() { return type_; }
+	static int getnextuid() { return uidcnt_++; }
 
  protected:
 	int command(int argc, const char*const* argv);
@@ -135,6 +144,18 @@ class Agent : public Connector {
 	OldValue *oldValueList_; 
 
 	Application *app_;		// ptr to application for callback
+	
+	// If this is set to "true" convert packets to and from
+	// raw format as they go to and from attached applications.
+	bool rawcvt_;
+	
+	// We also need to keep src and dest ip and port addresses
+	// around if we're going to use raw packets.
+	u_int16_t ipseq_;
+	u_long srcip_;
+	u_short srcport_;
+	u_long destip_;
+	u_short destport_;
 
 	virtual void trace(TracedVar *v);
 	void deleteAgentTrace();

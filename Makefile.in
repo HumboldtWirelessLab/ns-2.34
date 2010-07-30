@@ -59,7 +59,7 @@ STATIC	= @V_STATIC@
 LDFLAGS	= @LDFLAGS@ 
 LDOUT	= -o $(BLANK)
 
-DEFINE	= -DTCP_DELAY_BIND_ALL -DNO_TK @V_DEFINE@ @V_DEFINES@ @DEFS@ -DNS_DIFFUSION -DSMAC_NO_SYNC -DCPP_NAMESPACE=@CPP_NAMESPACE@ -DUSE_SINGLE_ADDRESS_SPACE -Drng_test
+DEFINE	= -DTCP_DELAY_BIND_ALL -DNO_TK @V_DEFINE@ @V_DEFINES@ @DEFS@ -DNS_DIFFUSION -DSMAC_NO_SYNC -DCPP_NAMESPACE=@CPP_NAMESPACE@ -DUSE_SINGLE_ADDRESS_SPACE -Drng_test -DALLOW_RANDOM
 
 INCLUDES = \
 	-I. @V_INCLUDE_X11@ \
@@ -163,7 +163,7 @@ NS_TCL_LIB_STL = tcl/lib/ns-diffusion.tcl \
 
 OBJ_CC = \
 	tools/random.o tools/rng.o tools/ranvar.o common/misc.o common/timer-handler.o \
-	common/scheduler.o common/object.o common/packet.o \
+	common/scheduler.o common/object.o common/packet.o common/rawpacket.o \
 	common/ip.o routing/route.o common/connector.o common/ttl.o \
 	trace/trace.o trace/trace-ip.o \
 	classifier/classifier.o classifier/classifier-addr.o \
@@ -175,6 +175,7 @@ OBJ_CC = \
 	classifier/classifier-mac.o \
 	classifier/classifier-qs.o \
 	classifier/classifier-port.o src_rtg/classifier-sr.o \
+	classifier/classifier-ext.o classifier/classifier-click.o \
         src_rtg/sragent.o src_rtg/hdr_src.o adc/ump.o \
 	qs/qsagent.o qs/hdr_qs.o \
 	apps/app.o apps/telnet.o tcp/tcplib-telnet.o \
@@ -215,7 +216,7 @@ OBJ_CC = \
 	sctp/sctpDebug.o \
 	tools/integrator.o tools/queue-monitor.o \
 	tools/flowmon.o tools/loss-monitor.o \
-	queue/queue.o queue/drop-tail.o \
+	queue/queue.o queue/drop-tail.o queue/clickqueue.o \
 	adc/simple-intserv-sched.o queue/red.o \
 	queue/semantic-packetqueue.o queue/semantic-red.o \
 	tcp/ack-recons.o \
@@ -243,16 +244,17 @@ OBJ_CC = \
 	common/pkt-counter.o \
 	common/Decapsulator.o common/Encapsulator.o \
 	common/encap.o \
-	mac/channel.o mac/mac.o mac/ll.o mac/mac-802_11.o \
+	mac/channel.o mac/mac.o mac/ll.o mac/ll-ext.o mac/mac-802_11.o \
 	mac/mac-802_11Ext.o \
 	mac/mac-802_3.o mac/mac-tdma.o mac/smac.o \
 	mobile/mip.o mobile/mip-reg.o mobile/gridkeeper.o \
 	mobile/propagation.o mobile/tworayground.o \
 	mobile/nakagami.o \
-	mobile/antenna.o mobile/omni-antenna.o \
+	mobile/antenna.o mobile/omni-antenna.o mobile/uni-antenna.o \
+	mobile/pattern-antenna.o \
 	mobile/shadowing.o mobile/shadowing-vis.o mobile/dumb-agent.o \
 	common/bi-connector.o common/node.o \
-	common/mobilenode.o \
+	common/mobilenode.o common/clicknode.o \
 	mac/arp.o mobile/god.o mobile/dem.o \
 	mobile/topography.o mobile/modulation.o \
 	queue/priqueue.o queue/dsr-priqueue.o \
@@ -319,6 +321,7 @@ OBJ_CC = \
 	pgm/classifier-pgm.o pgm/pgm-agent.o pgm/pgm-sender.o \
 	pgm/pgm-receiver.o mcast/rcvbuf.o \
 	mcast/classifier-lms.o mcast/lms-agent.o mcast/lms-receiver.o \
+	routing/extrouter.o routing/extclickrouter.o \
 	mcast/lms-sender.o \
 	queue/delayer.o \
 	xcp/xcpq.o xcp/xcp.o xcp/xcp-end-sys.o \
@@ -512,6 +515,7 @@ NS_TCL_LIB = \
 	tcl/lib/ns-srcrt.tcl \
 	tcl/mcast/ns-lms.tcl \
 	tcl/lib/ns-qsnode.tcl \
+	tcl/lib/ns-clicknode.tcl \
 	@V_NS_TCL_LIB_STL@
 
 $(GEN_DIR)ns_tcl.cc: $(NS_TCL_LIB)

@@ -138,6 +138,10 @@ class SendBufTimer : public TimerHandler {
 };
 
 
+void XmitFailedCallback(Packet *pkt, void *data);
+class ArpBufferTimer;
+class SendBufTimer;
+
 class DiffusionAgent : public Agent {
  public:
   DiffusionAgent();

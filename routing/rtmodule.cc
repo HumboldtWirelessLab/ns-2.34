@@ -137,6 +137,14 @@ public:
         }
 } class_lms_routing_module;
 
+static class ClickRoutingModuleClass : public TclClass {
+public:
+        ClickRoutingModuleClass() : TclClass("RtModule/Click") {}
+        TclObject* create(int, const char*const*) {
+                return (new ClickRoutingModule);
+        }
+} class_click_routing_module;
+
 RoutingModule::RoutingModule() : 
 	next_rtm_(NULL), n_(NULL), classifier_(NULL) {
 	bind("classifier_", (TclObject**)&classifier_);
@@ -508,4 +516,3 @@ void ManualRoutingModule::add_route(char *dst, NsObject *target) {
 	if (next_rtm_ != NULL)
 		next_rtm_->add_route(dst, target); 
 }
-

@@ -58,6 +58,9 @@ TCL_TCL_PLACES="../lib/tcl$TCL_HI_VERS \
 		/usr/share/tcl$TCL_VERS \
 		/usr/share/tcl$TCL_HI_VERS \
 		/usr/share/tcl$TCL_ALT_VERS \
+		/usr/share/tcltk/tcl$TCL_VERS \
+		/usr/share/tcltk/tcl$TCL_HI_VERS \
+		/usr/share/tcltk/tcl$TCL_ALT_VERS \
 		/usr/local/src/tcl$TCL_VERS \
 		/usr/local/src/tcl$TCL_HI_VERS \
 		/usr/local/src/tcl$TCL_ALT_VERS \

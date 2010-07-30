@@ -22,7 +22,8 @@ class MobileNode;
 class PacketStamp {
 public:
 
-  PacketStamp() : ant(0), node(0), Pr(-1), lambda(-1) { }
+  PacketStamp() : ant(0), node(0), Pr(-1), lambda(-1),PrLevel(-1),rate(0) { }
+  void clear() { ant = 0; node = 0; Pr = -1; lambda = -1; PrLevel = -1; rate = 0;}
 
   void init(const PacketStamp *s) {
 	  Antenna* ant;
@@ -33,6 +34,8 @@ public:
 	  
 	  //Antenna *ant = (s->ant) ? s->ant->copy(): 0;
 	  stamp(s->node, ant, s->Pr, s->lambda);
+	  PrLevel = s->PrLevel;
+	  rate = s->rate;
   }
 
   void stamp(MobileNode *n, Antenna *a, double xmitPr, double lam) {
@@ -45,7 +48,11 @@ public:
   inline Antenna * getAntenna() {return ant;}
   inline MobileNode * getNode() {return node;}
   inline double getTxPr() {return Pr;}
+  inline void setPrLevel(int p){PrLevel = p;}
+  inline int getPrLevel(){return PrLevel;}
   inline double getLambda() {return lambda;}
+  inline void setRate(double r){rate =r;}
+  inline double getRate(){return rate;}
 
   /* WILD HACK: The following two variables are a wild hack.
      They will go away in the next release...
@@ -60,6 +67,8 @@ protected:
   MobileNode	*node;
   double        Pr;		// power pkt sent with
   double        lambda;         // wavelength of signal
+  int 			PrLevel;	// nletor -- madwifi powerlevel set by TxPower element
+  double		rate;	// nletor -- transmission rate of packet
 };
 
 #endif /* !_cmu_packetstamp_h_ */

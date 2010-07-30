@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include "config.h"
 #include "agent.h"
 #include "ip.h"
+#include "tcp.h"
 #include "flags.h"
 #include "address.h"
 #include "app.h"
@@ -51,7 +52,14 @@ static const char rcsid[] =
 #include "nix/nixnode.h"
 #endif //HAVE_STL
 
+#include "rawpacket.h"
+#include "extrouter.h"
 
+#include <click/config.h>
+#include <click/confparse.hh>
+#include <clicknet/ip.h>
+#include <clicknet/tcp.h>
+#include <clicknet/udp.h>
 
 #ifndef min
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -70,7 +78,7 @@ int Agent::uidcnt_;		/* running unique id */
 Agent::Agent(packet_t pkttype) : 
 	size_(0), type_(pkttype), 
 	channel_(0), traceName_(NULL),
-	oldValueList_(NULL), app_(0), et_(0)
+	oldValueList_(NULL), app_(0), rawcvt_(false), et_(0)
 {
 }
 
@@ -170,6 +178,24 @@ int Agent::command(int argc, const char*const* argv)
 		} else if (strcmp(argv[1], "set_pkttype") == 0) {
 			set_pkttype(packet_t(atoi(argv[2])));
 			return (TCL_OK);
+		} else if (strcmp(argv[1], "set-srcip") == 0) {
+			if (!Click::cp_ip_address(Click::String(argv[2]), (unsigned char *) &srcip_))
+				return TCL_ERROR;
+			return (TCL_OK);
+		} else if (strcmp(argv[1], "set-srcport") == 0) {
+			srcport_ = atoi(argv[2]);
+			return (TCL_OK);
+		}
+		else if (strcmp(argv[1], "set-destip") == 0) {
+			if (!Click::cp_ip_address(Click::String(argv[2]), (unsigned char *) &destip_))
+				return TCL_ERROR;
+			return (TCL_OK);
+		} else if (strcmp(argv[1], "set-destport") == 0) {
+			destport_ = atoi(argv[2]);
+			return (TCL_OK);
+		} else if (strcmp(argv[1],"rawconvert") == 0) {
+			rawcvt_ = atoi(argv[2]);
+			return(TCL_OK);
 		}
 	}
 	else if (argc == 4) {	
@@ -438,10 +464,140 @@ void Agent::sendto(int /*nbytes*/, const char /*flags*/[], ns_addr_t /*dst*/)
 {
 }
 
+bool
+Agent::toraw(Packet* p) {
+	// XXX What about AppData and other such junk? Need to
+	// figure out if anyone actually sends payloads.
+	// XXX What about TCP option headers? Won't work with SACK right now
+	bool result = false;
+	struct hdr_tcp* htcp = HDR_TCP(p);
+	struct hdr_ip* hip = HDR_IP(p);
+	struct hdr_cmn* hcmn = HDR_CMN(p);
+	struct hdr_raw* hraw = hdr_raw::access(p);
+	int packetlen = sizeof(click_ip) + hcmn->size_;
+	int paylen = hcmn->size_;
+	unsigned char* pdat = 0;
+
+	// build packet length
+	if (hcmn->ptype_ == PT_ACK || hcmn->ptype_ == PT_TCP)
+		packetlen += sizeof(click_tcp);
+	else if (hcmn->ptype_ == PT_CBR)
+		packetlen += sizeof(click_udp);
+	else
+		return false;
+
+	// build packet
+	p->allocdata(packetlen);
+	pdat = p->accessdata();
+	memset(pdat, 0, packetlen);
+
+	// build IP header
+	click_ip *ip = (click_ip *) pdat;
+	ip->ip_v = 4;
+	ip->ip_hl = sizeof(click_ip) >> 2;
+	ip->ip_len = htons(packetlen);
+	ip->ip_id = htons(ipseq_);
+	ip->ip_p = (hcmn->ptype_ == PT_CBR ? IP_PROTO_UDP : IP_PROTO_TCP);
+	ip->ip_src.s_addr = srcip_;
+	ip->ip_dst.s_addr = destip_;
+	ip->ip_tos = 0;
+	ip->ip_off = 0;
+	ip->ip_ttl = hip->ttl_;
+	ip->ip_sum = 0;
+#if HAVE_FAST_CHECKSUM
+	ip->ip_sum = ip_fast_csum((unsigned char *)ip, sizeof(click_ip) >> 2);
+#else
+	ip->ip_sum = click_in_cksum((unsigned char *)ip, sizeof(click_ip));
+#endif
+
+	// build TCP/UDP header and payload
+	if (paylen > 0)
+		memset(pdat + (packetlen - paylen), 'A', paylen);
+	
+	if (hcmn->ptype_ == PT_CBR) {
+		click_udp *udp = (click_udp *) (ip + 1);
+		udp->uh_sport = htons(srcport_);
+		udp->uh_dport = htons(destport_);
+		uint16_t len = packetlen - sizeof(click_ip);
+		udp->uh_ulen = htons(len); 
+		udp->uh_sum = 0;
+		unsigned csum = click_in_cksum((unsigned char *)udp, len);
+		udp->uh_sum = click_in_cksum_pseudohdr(csum, ip, len);
+	} else {
+		click_tcp *tcp = (click_tcp *) (ip + 1);
+		tcp->th_sport = htons(srcport_);
+		tcp->th_dport = htons(destport_);
+		tcp->th_seq = htonl(htcp->seqno_);
+		tcp->th_ack = htonl(htcp->ackno_);
+		tcp->th_flags2 = 0;
+		tcp->th_off = sizeof(click_tcp) >> 2;
+		tcp->th_flags = htcp->tcp_flags_;
+		if (hcmn->ptype_ == PT_ACK)
+			tcp->th_flags |= TH_ACK;
+		tcp->th_win = 0; /* XXX */
+		tcp->th_urp = 0;
+		tcp->th_sum = 0;
+		uint16_t len = packetlen - sizeof(click_ip);
+		unsigned csum = click_in_cksum((unsigned char *)tcp, len);
+		tcp->th_sum = click_in_cksum_pseudohdr(csum, ip, len);
+	}
+
+	hcmn->direction() = hdr_cmn::DOWN;
+	hcmn->iface() = ExtRouter::IFID_KERNELTAP;
+	hraw->subtype = hdr_raw::IP;
+	hraw->ns_type = hcmn->ptype();
+	hcmn->ptype() = PT_RAW;
+	hcmn->size() = packetlen;
+	ipseq_++;
+
+	return result;
+}
+
+bool
+Agent::fromraw(Packet* p) {
+	struct hdr_tcp* htcp = HDR_TCP(p);
+	//struct hdr_ip* hip = HDR_IP(p);
+	struct hdr_cmn* hcmn = HDR_CMN(p);
+	//struct hdr_flags* hflg = hdr_flags::access(p);
+	struct click_ip* ip = 0;
+	struct click_tcp* tcp = 0;
+	//struct click_udp* udp = 0;
+	unsigned char* pdat = 0;
+	bool result = false;
+
+	if (PT_RAW != hcmn->ptype()) return false;
+
+	pdat = p->accessdata();
+	ip = (click_ip*)pdat;
+
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		tcp = (click_tcp*)(pdat + (ip->ip_hl << 2));
+		htcp->seqno_ = ntohl(tcp->th_seq);
+		htcp->ackno_ = ntohl(tcp->th_ack);
+		htcp->tcp_flags_ = tcp->th_flags;
+		htcp->hlen_ = (ip->ip_hl << 2) + (tcp->th_off << 2);
+		hcmn->ptype_ = (tcp->th_flags & TH_ACK) ? PT_ACK : PT_TCP;
+		result = true;
+		break;
+	case IPPROTO_UDP:
+		hcmn->ptype_ = PT_CBR;
+		result = true;
+		break;
+	default:
+		result = false;
+		break;
+	}
+
+	return result;
+}
+
 void Agent::recv(Packet* p, Handler*)
 {
-	if (app_)
+	if (app_) {
+		if (rawcvt_) fromraw(p);
 		app_->recv(hdr_cmn::access(p)->size());
+	}
 	/*
 	 * didn't expect packet (or we're a null agent?)
 	 */
