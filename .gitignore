@@ -21,3 +21,4 @@ temp.rands
 autoconf.h
 ptypes2tcl
 .configure
+*.o
