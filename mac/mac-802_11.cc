@@ -194,6 +194,11 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
 	parent->bind("MaxChannelTime_", &MaxChannelTime);
 	parent->bind("MinChannelTime_", &MinChannelTime);
 	parent->bind("ChannelTime_", &ChannelTime);
+        Promisc = 0;
+	fprintf(stderr,"Pre Promisc: %d\n",Promisc);
+	parent->bind("Promisc_", &Promisc);
+	if ( Promisc > 1 ) Promisc = 1;
+	fprintf(stderr,"Post Promisc: %d\n",Promisc);
 }
 	
 
@@ -1872,7 +1877,9 @@ Mac802_11::recv_timer()
 	/*
 	 * Address Filtering
 	 */
-	if(dst != (u_int32_t)index_ && dst != MAC_BROADCAST) {
+//	fprintf(stderr,"Promisc: %d\n", macmib_.getPromisc());
+	if(dst != (u_int32_t)index_ && dst != MAC_BROADCAST && macmib_.getPromisc() == 0) {
+//	        fprintf(stderr,"Discard Packet\n");
 		/*
 		 *  We don't want to log this event, so we just free
 		 *  the packet instead of calling the drop routine.

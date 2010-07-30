@@ -322,6 +322,7 @@ private:
 	double		MaxChannelTime;
 	double		MinChannelTime;
 	double		ChannelTime;
+	u_int32_t	Promisc;
 	
 public:
 	u_int32_t	FailedCount;	
@@ -336,6 +337,7 @@ public:
        inline double getMaxChannelTime() { return(MaxChannelTime);}
        inline double getMinChannelTime() { return(MinChannelTime);}
        inline double getChannelTime() { return(ChannelTime);}
+       inline u_int32_t getPromisc() { return(Promisc);}	
 };
 
 
