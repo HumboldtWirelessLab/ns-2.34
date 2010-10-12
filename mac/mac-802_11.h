@@ -323,6 +323,8 @@ private:
 	double		MinChannelTime;
 	double		ChannelTime;
 	u_int32_t	Promisc;
+  u_int32_t TXFeedback;
+  u_int32_t FilterDub;
 	
 public:
 	u_int32_t	FailedCount;	
@@ -337,7 +339,8 @@ public:
        inline double getMaxChannelTime() { return(MaxChannelTime);}
        inline double getMinChannelTime() { return(MinChannelTime);}
        inline double getChannelTime() { return(ChannelTime);}
-       inline u_int32_t getPromisc() { return(Promisc);}	
+       inline u_int32_t getPromisc() { return(Promisc);}
+       inline u_int32_t getFilterDub() { return(FilterDub);}
 };
 
 
