@@ -194,11 +194,15 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
 	parent->bind("MaxChannelTime_", &MaxChannelTime);
 	parent->bind("MinChannelTime_", &MinChannelTime);
 	parent->bind("ChannelTime_", &ChannelTime);
-        Promisc = 0;
-	fprintf(stderr,"Pre Promisc: %d\n",Promisc);
+  Promisc = 0;
 	parent->bind("Promisc_", &Promisc);
 	if ( Promisc > 1 ) Promisc = 1;
-	fprintf(stderr,"Post Promisc: %d\n",Promisc);
+  TXFeedback = 0;
+  parent->bind("TXFeedback_", &TXFeedback);
+  if ( TXFeedback > 1 ) TXFeedback = 1;
+  FilterDub = 1;
+  parent->bind("FilterDub_", &FilterDub);
+  if ( FilterDub > 1 ) FilterDub = 1;
 }
 	
 
@@ -2096,7 +2100,7 @@ Mac802_11::recvDATA(Packet *p)
 	/*
 	 *  If we sent a CTS, clean up...
 	 */
-	if(dst != MAC_BROADCAST) {
+  if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
 		//if(size >= macmib_.getRTSThreshold()) {
 		if ( 	(!rceh && size >= macmib_.getRTSThreshold()) ||
 			 	( rceh && pktCTRL_)){
@@ -2136,11 +2140,11 @@ Mac802_11::recvDATA(Packet *p)
 	   suggested by Joerg Diederich <dieder@ibr.cs.tu-bs.de>. 
 	   Changed on 19th Oct'2000 */
 
-        if(dst != MAC_BROADCAST) {
+     if(dst != MAC_BROADCAST && dst == (u_int32_t)index_) {
                 if (src < (u_int32_t) cache_node_count_) {
                         Host *h = &cache_[src];
 
-                        if(h->seqno && h->seqno == dh->dh_scontrol) {
+                        if(h->seqno && h->seqno == dh->dh_scontrol && macmib_.getFilterDub() == 1) {
                                 discard(p, DROP_MAC_DUPLICATE);
                                 return;
                         }
@@ -2298,7 +2302,8 @@ Mac802_11::recvACK(Packet *p)
 
 	tx_resume();
 
-	mac_log(p);
+	//mac_log(p);
+  //uptarget_->recv(p->copy(), (Handler*) 0);
 	// nletor
 	if (p2 != 0 ){
 		uptarget_->recv(p2, (Handler*) 0);	// send feedback WIFI_EXTRA_TX
