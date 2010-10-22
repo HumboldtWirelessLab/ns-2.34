@@ -396,17 +396,21 @@ WirelessPhy::sendUp(Packet *p)
 	if(propagation_) {
 		s.stamp((MobileNode*)node(), ant_, 0, lambda_);
 		Pr = propagation_->Pr(&p->txinfo_, &s, this);
-		if(ceh != 0){	
-			//analog to atheros formule -95dBm is lowest sens.
-			double LPr = (10 * log(Pr * 1000));
-			double LRXThr = (10 * log(RXThresh_ * 1000));
-			if (LPr < numeric_limits<double>::infinity()){
-				ceh->rssi = (short int)( (LPr - LRXThr ) * (60.0/100.0) );	
-				ceh->rssi = (ceh->rssi > 60) ? 60 : ceh->rssi;
-			} else {
-				ceh->rssi = 60;
-			}			
-		}
+
+    //analog to atheros formule -95dBm is lowest sens.
+    double LPr = (10 * log(Pr * 1000));
+    double LRXThr = (10 * log(RXThresh_ * 1000));
+    if (LPr < numeric_limits<double>::infinity()){
+      p->txinfo_.RxPrMadwifi = (short int)( (LPr - LRXThr ) * (60.0/100.0) );
+      p->txinfo_.RxPrMadwifi = (p->txinfo_.RxPrMadwifi > 60) ? 60 : p->txinfo_.RxPrMadwifi;
+    } else {
+      p->txinfo_.RxPrMadwifi = 60;
+    }
+
+    if(ceh != 0){
+      ceh->rssi = p->txinfo_.RxPrMadwifi;
+      ceh->silence = -95;
+    }
 
 		if (Pr < CSThresh_) {
 			pkt_recvd = 0;

@@ -62,6 +62,7 @@ public:
   double RxPr;			// power with which pkt is received
   double CPThresh;		// capture threshold for recving interface
 
+  short int RxPrMadwifi;
 protected:
   Antenna       *ant;
   MobileNode	*node;

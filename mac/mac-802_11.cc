@@ -1534,6 +1534,8 @@ Mac802_11::RetransmitDATA()
 			click_wifi_extra* ceh2 = getWifiExtra(p2);
 			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
 			ceh2->flags |= WIFI_EXTRA_TX;
+      ceh2->silence = -95;
+      ceh2->rssi = 0;
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
 			
@@ -2271,6 +2273,8 @@ Mac802_11::recvACK(Packet *p)
 		p2 = pktTx_->copy();
 		click_wifi_extra* ceh2 = getWifiExtra(p2);
 		ceh2->flags |= WIFI_EXTRA_TX;
+    ceh2->silence = -95;
+    ceh2->rssi = p->txinfo_.RxPrMadwifi;
 		struct hdr_cmn* ch2 = HDR_CMN(p2); 
 		ch2->direction() = hdr_cmn::UP; 
 	} 
