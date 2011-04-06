@@ -1485,21 +1485,21 @@ Mac802_11::RetransmitDATA()
 	if ((ceh != 0) && (ceh->max_tries != 0)){
 		ceh->retries = (*rcount);
 			
-		if (count <= ceh->max_tries){
+		if (count < ceh->max_tries){
 			double rate = ((short int)(ceh->rate))*500000; 
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
-		} else if ( (count-=ceh->max_tries) <= ceh->max_tries1 ){
+		} else if ( (count-=ceh->max_tries) < ceh->max_tries1 ){
 			double rate = ((short int)(ceh->rate1))*500000; 
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
 			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
-		} else if ( (count-=ceh->max_tries1) <= ceh->max_tries2 ){
+		} else if ( (count-=ceh->max_tries1) < ceh->max_tries2 ){
 			double rate = ((short int)(ceh->rate2))*500000; 
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
 			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
-		} else if ( (count-=ceh->max_tries2) <= ceh->max_tries3 ){
+		} else if ( (count-=ceh->max_tries2) < ceh->max_tries3 ){
 			double rate = ((short int)(ceh->rate3))*500000; 
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
