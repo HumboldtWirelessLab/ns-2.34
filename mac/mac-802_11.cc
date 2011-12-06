@@ -168,8 +168,16 @@ PHY_MIB::PHY_MIB(Mac802_11 *parent)
 	 * to Mac/802_11 variables
 	 */
 
-	parent->bind("CWMin_", &CWMin);
-	parent->bind("CWMax_", &CWMax);
+	parent->bind("CWMin_", &(CWMin[0]));
+	parent->bind("CWMax_", &(CWMax[0]));
+	parent->bind("CWMin1_", &(CWMin[1]));
+	parent->bind("CWMax1_", &(CWMax[1]));
+	parent->bind("CWMin2_", &(CWMin[2]));
+	parent->bind("CWMax2_", &(CWMax[2]));
+	parent->bind("CWMin3_", &(CWMin[3]));
+	parent->bind("CWMax3_", &(CWMax[3]));
+	parent->bind("NoHWQueues_", &NoHwQueues);
+	
 	parent->bind("SlotTime_", &SlotTime);
 	parent->bind("SIFS_", &SIFSTime);
 	parent->bind("BeaconInterval_", &BeaconInterval);
@@ -230,6 +238,7 @@ Mac802_11::Mac802_11() :
 	pktPROBEREP_ = 0;
 	BeaconTxtime_ = 0;
 	infra_mode_ = 0;	
+	queue_index_ = 0;
 	cw_ = phymib_.getCWMin();
 	ssrc_ = slrc_ = 0;
 	// Added by Sushmita
@@ -1311,6 +1320,7 @@ Mac802_11::sendDATA(Packet *p)
 	/* store data tx time */
  	ch->txtime() = txtime(ch->size(), dataRate_);
 
+//#warning Implement rateselection for broadcast (allow multirate linkprobing)
 	if(dst != MAC_BROADCAST) {
 		/* store data tx time for unicast packets */
 		ch->txtime() = txtime(ch->size(), dataRate_);
@@ -1449,6 +1459,7 @@ Mac802_11::RetransmitDATA()
 		 * Backoff at end of TX.
 		 */
 		rst_cw();
+		printf("CW (retransdata): %d\n", cw_);
 		mhBackoff_.start(cw_, is_idle());
 
 		return;
@@ -1567,6 +1578,7 @@ Mac802_11::RetransmitDATA()
 
 		sendRTS(ETHER_ADDR(mh->dh_ra));
 		inc_cw();
+		printf("CW (Retry %d): %d\n",*rcount,cw_);
 		mhBackoff_.start(cw_, is_idle());
 	}
 }
@@ -1710,6 +1722,7 @@ Mac802_11::send(Packet *p, Handler *h)
 	 *  Space before transmitting.
 	 */
        
+        printf("CW: %d\n",cw_);
 	if(mhBackoff_.busy() == 0) {
 		if(is_idle()) {
 			if (mhDefer_.busy() == 0) {

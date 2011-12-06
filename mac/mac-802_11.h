@@ -77,6 +77,7 @@ class EventTrace;
 #define MAC_Subtype_ProbeReq	0x04
 #define MAC_Subtype_ProbeRep	0x05
 
+#define MAC_Max_HW_Queue	4
 
 struct frame_control {
 	u_char		fc_subtype		: 4;
@@ -229,8 +230,10 @@ class PHY_MIB {
 public:
 	PHY_MIB(Mac802_11 *parent);
 
-	inline u_int32_t getCWMin() { return(CWMin); }
-        inline u_int32_t getCWMax() { return(CWMax); }
+	inline u_int32_t getCWMin() { return(CWMin[0]); }
+        inline u_int32_t getCWMax() { return(CWMax[0]); }
+	inline u_int32_t getCWMin(u_int32_t q) { return(CWMin[q]); }
+        inline u_int32_t getCWMax(u_int32_t q) { return(CWMax[q]); }
 	inline double getSlotTime() { return(SlotTime); }
 	inline double getBeaconInterval() { return(BeaconInterval); }
 	inline double getSIFS() { return(SIFSTime); }
@@ -286,14 +289,16 @@ public:
  private:
 
 
-	u_int32_t	CWMin;
-	u_int32_t	CWMax;
+	u_int32_t	CWMin[MAC_Max_HW_Queue];
+	u_int32_t	CWMax[MAC_Max_HW_Queue];
 	double		SlotTime;
 	double		SIFSTime;
 	double		BeaconInterval;
 	u_int32_t	PreambleLength;
 	u_int32_t	PLCPHeaderLength;
 	double		PLCPDataRate;
+	
+	u_int32_t	NoHwQueues;
 };
 
 
@@ -323,8 +328,8 @@ private:
 	double		MinChannelTime;
 	double		ChannelTime;
 	u_int32_t	Promisc;
-  u_int32_t TXFeedback;
-  u_int32_t FilterDub;
+	u_int32_t TXFeedback;
+	u_int32_t FilterDub;
 	
 public:
 	u_int32_t	FailedCount;	
@@ -516,10 +521,10 @@ private:
 
 	inline void inc_cw() {
 		cw_ = (cw_ << 1) + 1;
-		if(cw_ > phymib_.getCWMax())
-			cw_ = phymib_.getCWMax();
+		if(cw_ > phymib_.getCWMax(queue_index_))
+			cw_ = phymib_.getCWMax(queue_index_);
 	}
-	inline void rst_cw() { cw_ = phymib_.getCWMin(); }
+	inline void rst_cw() { cw_ = phymib_.getCWMin(queue_index_); }
 
 	inline double sec(double t) { return(t *= 1.0e-6); }
 	inline u_int16_t usec(double t) {
@@ -594,6 +599,7 @@ private:
 	Packet		*pktPROBEREP_;	//Probe Response
 
 	u_int32_t	cw_;		// Contention Window
+	u_int32_t	queue_index_;
 	u_int32_t	ssrc_;		// STA Short Retry Count
 	u_int32_t	slrc_;		// STA Long Retry Count
 
