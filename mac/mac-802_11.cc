@@ -1459,7 +1459,7 @@ Mac802_11::RetransmitDATA()
 		 * Backoff at end of TX.
 		 */
 		rst_cw();
-		printf("CW (retransdata): %d\n", cw_);
+//		printf("CW (retransdata): %d\n", cw_);
 		mhBackoff_.start(cw_, is_idle());
 
 		return;
@@ -1578,7 +1578,7 @@ Mac802_11::RetransmitDATA()
 
 		sendRTS(ETHER_ADDR(mh->dh_ra));
 		inc_cw();
-		printf("CW (Retry %d): %d\n",*rcount,cw_);
+		//printf("CW (Retry %d): %d\n",*rcount,cw_);
 		mhBackoff_.start(cw_, is_idle());
 	}
 }
@@ -1707,6 +1707,16 @@ Mac802_11::send(Packet *p, Handler *h)
 		em->set_node_sleep(0);
 		em->set_node_state(EnergyModel::INROUTE);
 	}
+
+	click_wifi_extra* ceh = getWifiExtra(p);
+
+	if ( ceh != 0 ) {
+	    u_int8_t queue = (ceh->flags >> 18) & 3;
+	    queue_index_ = queue;
+//	    printf("Queue: %d\n",queue);
+	    rst_cw();
+	}
+//      printf("CW (pre send): %d\n",cw_);
 	
 	callback_ = h;
 	sendDATA(p);
@@ -1721,8 +1731,8 @@ Mac802_11::send(Packet *p, Handler *h)
 	 *  If the medium is IDLE, we must wait for a DIFS
 	 *  Space before transmitting.
 	 */
-       
-        printf("CW: %d\n",cw_);
+		
+//      printf("CW: %d\n",cw_);
 	if(mhBackoff_.busy() == 0) {
 		if(is_idle()) {
 			if (mhDefer_.busy() == 0) {
@@ -2115,7 +2125,8 @@ Mac802_11::recvDATA(Packet *p)
 	/*
 	 *  If we sent a CTS, clean up...
 	 */
-  if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
+	 
+	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
 		//if(size >= macmib_.getRTSThreshold()) {
 		if ( 	(!rceh && size >= macmib_.getRTSThreshold()) ||
 			 	( rceh && pktCTRL_)){
@@ -2155,7 +2166,7 @@ Mac802_11::recvDATA(Packet *p)
 	   suggested by Joerg Diederich <dieder@ibr.cs.tu-bs.de>. 
 	   Changed on 19th Oct'2000 */
 
-     if(dst != MAC_BROADCAST && dst == (u_int32_t)index_) {
+	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_) {
                 if (src < (u_int32_t) cache_node_count_) {
                         Host *h = &cache_[src];
 
@@ -2319,8 +2330,8 @@ Mac802_11::recvACK(Packet *p)
 
 	tx_resume();
 
-	//mac_log(p);
-  //uptarget_->recv(p->copy(), (Handler*) 0);
+	mac_log(p);
+        //uptarget_->recv(p->copy(), (Handler*) 0);
 	// nletor
 	if (p2 != 0 ){
 		uptarget_->recv(p2, (Handler*) 0);	// send feedback WIFI_EXTRA_TX
