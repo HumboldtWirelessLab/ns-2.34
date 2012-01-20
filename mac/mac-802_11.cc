@@ -129,9 +129,53 @@ Mac802_11::transmit(Packet *p, double timeout)
 	mhSend_.start(timeout);
 	mhIF_.start(txtime(p));
 }
+
+//#define PERFORMANCE_COUNTER_DEBUG 1
+
 inline void
 Mac802_11::setRxState(MacState newState)
 {
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d RXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
+          perf_stats_.cylce_counter,perf_stats_.busy_counter, perf_stats_.rx_counter,perf_stats_.tx_counter );
+#endif
+
+  double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d Time: %f last: %f diff: %f\n",(u_int32_t)index_, Scheduler::instance().clock() , perf_stats_.ts_mode_start, diff_cycles);
+#endif
+
+  switch (perf_stats_.current_mode) {
+    case PERFORMANCE_MODE_IDLE:
+      break;
+    case PERFORMANCE_MODE_RX:
+      perf_stats_.rx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_TX:
+      //perf_stats_.tx_counter += diff_cycles;
+      //perf_stats_.busy_counter += diff_cycles; 
+      break;
+    case PERFORMANCE_MODE_BUSY:
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+  }
+
+  if ( perf_stats_.current_mode != PERFORMANCE_MODE_TX ) {
+    perf_stats_.cylce_counter += diff_cycles;
+
+    if ( newState == MAC_IDLE ) {
+      perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+    } else if ( newState == MAC_COLL ) {
+      perf_stats_.current_mode = PERFORMANCE_MODE_BUSY;
+    } else {
+      perf_stats_.current_mode = PERFORMANCE_MODE_RX;
+    }
+
+    perf_stats_.ts_mode_start = Scheduler::instance().clock();
+  }
+
 	rx_state_ = newState;
 	checkBackoffTimer();
 }
@@ -139,10 +183,108 @@ Mac802_11::setRxState(MacState newState)
 inline void
 Mac802_11::setTxState(MacState newState)
 {
-	tx_state_ = newState;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d TXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
+           perf_stats_.cylce_counter,perf_stats_.busy_counter, perf_stats_.rx_counter,perf_stats_.tx_counter );
+#endif
+
+  double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
+  perf_stats_.cylce_counter += diff_cycles;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d Time: %f last: %f diff: %f\n",(u_int32_t)index_, Scheduler::instance().clock() , perf_stats_.ts_mode_start, diff_cycles);
+#endif
+
+  switch (perf_stats_.current_mode) {
+    case PERFORMANCE_MODE_IDLE:
+      break;
+    case PERFORMANCE_MODE_RX:
+      perf_stats_.rx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_TX:
+      perf_stats_.tx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_BUSY:
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+  }
+
+  if ( newState == MAC_IDLE ) {
+    perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+  } else {
+    perf_stats_.current_mode = PERFORMANCE_MODE_TX;
+  }
+  perf_stats_.ts_mode_start = Scheduler::instance().clock();
+
+  tx_state_ = newState;
 	checkBackoffTimer();
 }
 
+void
+Mac802_11::getPerformanceCounter(int *perf_count)
+{
+  double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
+  perf_stats_.cylce_counter += diff_cycles;
+
+  switch (perf_stats_.current_mode) {
+    case PERFORMANCE_MODE_IDLE:
+      break;
+    case PERFORMANCE_MODE_RX:
+      perf_stats_.rx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_TX:
+      perf_stats_.tx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_BUSY:
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+  }
+
+  perf_stats_.ts_mode_start = Scheduler::instance().clock();
+
+  double idle = 0.0;
+  double busy = 0.0;
+  double rx = 0.0;
+  double tx = 0.0;
+
+  if ( perf_stats_.cylce_counter > 0 ) {
+    idle = (100 * (perf_stats_.cylce_counter-perf_stats_.busy_counter))/perf_stats_.cylce_counter;
+    busy = (100 * perf_stats_.busy_counter)/perf_stats_.cylce_counter;
+    rx = (100 * perf_stats_.rx_counter)/perf_stats_.cylce_counter;
+    tx = (100 * perf_stats_.tx_counter)/perf_stats_.cylce_counter;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+    printf("Node: %d Time: %f Idle: %f Busy: %f RX: %f TX: %f\n",(u_int32_t)index_,perf_stats_.ts_mode_start,idle,busy,rx,tx);
+#endif
+  }
+//#ifdef PERFORMANCE_COUNTER_DEBUG
+  else {
+    printf("Node: %d no cycles\n",(u_int32_t)index_);
+  }
+//#endif
+
+  //percentage
+  perf_count[0] = round(busy);
+  perf_count[1] = round(rx);
+  perf_count[2] = round(tx);
+
+  //raw value
+  perf_count[3] = round(perf_stats_.cylce_counter * CYCLES_PER_SECONDS);
+  perf_count[4] = round(perf_stats_.busy_counter * CYCLES_PER_SECONDS);
+  perf_count[5] = round(perf_stats_.rx_counter * CYCLES_PER_SECONDS);
+  perf_count[6] = round(perf_stats_.tx_counter * CYCLES_PER_SECONDS);
+
+  perf_stats_.cylce_counter = 0.0;
+  perf_stats_.busy_counter = 0.0;
+  perf_stats_.rx_counter = 0.0;
+  perf_stats_.tx_counter = 0.0;
+
+}
 
 /* ======================================================================
    TCL Hooks for the simulator
@@ -283,6 +425,15 @@ Mac802_11::Mac802_11() :
 
         EOTtarget_ = 0;
        	bss_id_ = IBSS_ID;
+
+  perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+  perf_stats_.ts_mode_start = 0.0;
+
+  perf_stats_.cylce_counter = 0.0;
+  perf_stats_.busy_counter = 0.0;
+  perf_stats_.rx_counter = 0.0;
+  perf_stats_.tx_counter = 0.0;
+
 }
 
 

@@ -144,6 +144,9 @@ class ClickClassifier : public ExtClassifier, public ExtRouter,
   void trace(char* fmt, ...); /// ToNSTrace
   int GetNextPktID(); /// ToNSTrace
   int GetIFID(const char *) const;
+  int GetPosition(int *pos);
+  int GetPerformanceCounter(int ifid, int *perf_counter);
+
  protected:
   int GetNSSubtype(int clicktype);
   int GetClickPacketType(int nssubtype);

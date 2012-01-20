@@ -216,6 +216,24 @@ struct priority_queue {
 	int frame_priority;
 	struct priority_queue *next;
 };
+
+#define PERFORMANCE_MODE_IDLE 0
+#define PERFORMANCE_MODE_BUSY 1
+#define PERFORMANCE_MODE_RX   2
+#define PERFORMANCE_MODE_TX   3
+
+#define CYCLES_PER_SECONDS (double)44000000.0
+
+struct performance_stats {
+  int current_mode;
+  double ts_mode_start;
+
+  double cylce_counter;
+  double busy_counter;
+  double rx_counter;
+  double tx_counter;
+};
+
 /* ======================================================================
    Definitions
    ====================================================================== */
@@ -386,6 +404,8 @@ public:
         void trace_event(char *, Packet *);
         EventTrace *et_;
 
+  void getPerformanceCounter(int *perf_count);
+
 protected:
 	void	backoffHandler(void);
 	void	deferHandler(void);
@@ -518,7 +538,6 @@ private:
 	inline void setRxState(MacState newState);
 	inline void setTxState(MacState newState);
 
-
 	inline void inc_cw() {
 		cw_ = (cw_ << 1) + 1;
 		if(cw_ > phymib_.getCWMax(queue_index_))
@@ -620,7 +639,7 @@ private:
 	std::list<struct client_table> client_list1;
 	std::list<struct ap_table> ap_list1;
 
-
+  struct performance_stats perf_stats_;
 };
 
 #endif /* __mac_80211_h__ */

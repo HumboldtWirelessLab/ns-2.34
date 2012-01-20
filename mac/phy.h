@@ -107,6 +107,8 @@ class Phy : public BiConnector {
 	virtual void    dump(void) const;
 	LinkHead* head() { return head_; }
 
+	Node* getNode() { return node_; }
+
  protected:
 	//void		drop(Packet *p);
 	int		command(int argc, const char*const* argv);
