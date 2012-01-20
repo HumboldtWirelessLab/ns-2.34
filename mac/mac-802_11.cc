@@ -129,9 +129,53 @@ Mac802_11::transmit(Packet *p, double timeout)
 	mhSend_.start(timeout);
 	mhIF_.start(txtime(p));
 }
+
+//#define PERFORMANCE_COUNTER_DEBUG 1
+
 inline void
 Mac802_11::setRxState(MacState newState)
 {
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d RXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
+          perf_stats_.cylce_counter,perf_stats_.busy_counter, perf_stats_.rx_counter,perf_stats_.tx_counter );
+#endif
+
+  double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d Time: %f last: %f diff: %f\n",(u_int32_t)index_, Scheduler::instance().clock() , perf_stats_.ts_mode_start, diff_cycles);
+#endif
+
+  switch (perf_stats_.current_mode) {
+    case PERFORMANCE_MODE_IDLE:
+      break;
+    case PERFORMANCE_MODE_RX:
+      perf_stats_.rx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_TX:
+      //perf_stats_.tx_counter += diff_cycles;
+      //perf_stats_.busy_counter += diff_cycles; 
+      break;
+    case PERFORMANCE_MODE_BUSY:
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+  }
+
+  if ( perf_stats_.current_mode != PERFORMANCE_MODE_TX ) {
+    perf_stats_.cylce_counter += diff_cycles;
+
+    if ( newState == MAC_IDLE ) {
+      perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+    } else if ( newState == MAC_COLL ) {
+      perf_stats_.current_mode = PERFORMANCE_MODE_BUSY;
+    } else {
+      perf_stats_.current_mode = PERFORMANCE_MODE_RX;
+    }
+
+    perf_stats_.ts_mode_start = Scheduler::instance().clock();
+  }
+
 	rx_state_ = newState;
 	checkBackoffTimer();
 }
@@ -139,10 +183,108 @@ Mac802_11::setRxState(MacState newState)
 inline void
 Mac802_11::setTxState(MacState newState)
 {
-	tx_state_ = newState;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d TXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
+           perf_stats_.cylce_counter,perf_stats_.busy_counter, perf_stats_.rx_counter,perf_stats_.tx_counter );
+#endif
+
+  double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
+  perf_stats_.cylce_counter += diff_cycles;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+  fprintf(stderr, "Node: %d Time: %f last: %f diff: %f\n",(u_int32_t)index_, Scheduler::instance().clock() , perf_stats_.ts_mode_start, diff_cycles);
+#endif
+
+  switch (perf_stats_.current_mode) {
+    case PERFORMANCE_MODE_IDLE:
+      break;
+    case PERFORMANCE_MODE_RX:
+      perf_stats_.rx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_TX:
+      perf_stats_.tx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_BUSY:
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+  }
+
+  if ( newState == MAC_IDLE ) {
+    perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+  } else {
+    perf_stats_.current_mode = PERFORMANCE_MODE_TX;
+  }
+  perf_stats_.ts_mode_start = Scheduler::instance().clock();
+
+  tx_state_ = newState;
 	checkBackoffTimer();
 }
 
+void
+Mac802_11::getPerformanceCounter(int *perf_count)
+{
+  double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
+  perf_stats_.cylce_counter += diff_cycles;
+
+  switch (perf_stats_.current_mode) {
+    case PERFORMANCE_MODE_IDLE:
+      break;
+    case PERFORMANCE_MODE_RX:
+      perf_stats_.rx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_TX:
+      perf_stats_.tx_counter += diff_cycles;
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+    case PERFORMANCE_MODE_BUSY:
+      perf_stats_.busy_counter += diff_cycles;
+      break;
+  }
+
+  perf_stats_.ts_mode_start = Scheduler::instance().clock();
+
+  double idle = 0.0;
+  double busy = 0.0;
+  double rx = 0.0;
+  double tx = 0.0;
+
+  if ( perf_stats_.cylce_counter > 0 ) {
+    idle = (100 * (perf_stats_.cylce_counter-perf_stats_.busy_counter))/perf_stats_.cylce_counter;
+    busy = (100 * perf_stats_.busy_counter)/perf_stats_.cylce_counter;
+    rx = (100 * perf_stats_.rx_counter)/perf_stats_.cylce_counter;
+    tx = (100 * perf_stats_.tx_counter)/perf_stats_.cylce_counter;
+
+#ifdef PERFORMANCE_COUNTER_DEBUG
+    printf("Node: %d Time: %f Idle: %f Busy: %f RX: %f TX: %f\n",(u_int32_t)index_,perf_stats_.ts_mode_start,idle,busy,rx,tx);
+#endif
+  }
+//#ifdef PERFORMANCE_COUNTER_DEBUG
+  else {
+    printf("Node: %d no cycles\n",(u_int32_t)index_);
+  }
+//#endif
+
+  //percentage
+  perf_count[0] = round(busy);
+  perf_count[1] = round(rx);
+  perf_count[2] = round(tx);
+
+  //raw value
+  perf_count[3] = round(perf_stats_.cylce_counter * CYCLES_PER_SECONDS);
+  perf_count[4] = round(perf_stats_.busy_counter * CYCLES_PER_SECONDS);
+  perf_count[5] = round(perf_stats_.rx_counter * CYCLES_PER_SECONDS);
+  perf_count[6] = round(perf_stats_.tx_counter * CYCLES_PER_SECONDS);
+
+  perf_stats_.cylce_counter = 0.0;
+  perf_stats_.busy_counter = 0.0;
+  perf_stats_.rx_counter = 0.0;
+  perf_stats_.tx_counter = 0.0;
+
+}
 
 /* ======================================================================
    TCL Hooks for the simulator
@@ -168,8 +310,16 @@ PHY_MIB::PHY_MIB(Mac802_11 *parent)
 	 * to Mac/802_11 variables
 	 */
 
-	parent->bind("CWMin_", &CWMin);
-	parent->bind("CWMax_", &CWMax);
+	parent->bind("CWMin_", &(CWMin[0]));
+	parent->bind("CWMax_", &(CWMax[0]));
+	parent->bind("CWMin1_", &(CWMin[1]));
+	parent->bind("CWMax1_", &(CWMax[1]));
+	parent->bind("CWMin2_", &(CWMin[2]));
+	parent->bind("CWMax2_", &(CWMax[2]));
+	parent->bind("CWMin3_", &(CWMin[3]));
+	parent->bind("CWMax3_", &(CWMax[3]));
+	parent->bind("NoHWQueues_", &NoHwQueues);
+	
 	parent->bind("SlotTime_", &SlotTime);
 	parent->bind("SIFS_", &SIFSTime);
 	parent->bind("BeaconInterval_", &BeaconInterval);
@@ -230,6 +380,7 @@ Mac802_11::Mac802_11() :
 	pktPROBEREP_ = 0;
 	BeaconTxtime_ = 0;
 	infra_mode_ = 0;	
+	queue_index_ = 0;
 	cw_ = phymib_.getCWMin();
 	ssrc_ = slrc_ = 0;
 	// Added by Sushmita
@@ -274,6 +425,15 @@ Mac802_11::Mac802_11() :
 
         EOTtarget_ = 0;
        	bss_id_ = IBSS_ID;
+
+  perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+  perf_stats_.ts_mode_start = 0.0;
+
+  perf_stats_.cylce_counter = 0.0;
+  perf_stats_.busy_counter = 0.0;
+  perf_stats_.rx_counter = 0.0;
+  perf_stats_.tx_counter = 0.0;
+
 }
 
 
@@ -1311,6 +1471,7 @@ Mac802_11::sendDATA(Packet *p)
 	/* store data tx time */
  	ch->txtime() = txtime(ch->size(), dataRate_);
 
+//#warning Implement rateselection for broadcast (allow multirate linkprobing)
 	if(dst != MAC_BROADCAST) {
 		/* store data tx time for unicast packets */
 		ch->txtime() = txtime(ch->size(), dataRate_);
@@ -1449,6 +1610,7 @@ Mac802_11::RetransmitDATA()
 		 * Backoff at end of TX.
 		 */
 		rst_cw();
+//		printf("CW (retransdata): %d\n", cw_);
 		mhBackoff_.start(cw_, is_idle());
 
 		return;
@@ -1567,6 +1729,7 @@ Mac802_11::RetransmitDATA()
 
 		sendRTS(ETHER_ADDR(mh->dh_ra));
 		inc_cw();
+		//printf("CW (Retry %d): %d\n",*rcount,cw_);
 		mhBackoff_.start(cw_, is_idle());
 	}
 }
@@ -1695,6 +1858,16 @@ Mac802_11::send(Packet *p, Handler *h)
 		em->set_node_sleep(0);
 		em->set_node_state(EnergyModel::INROUTE);
 	}
+
+	click_wifi_extra* ceh = getWifiExtra(p);
+
+	if ( ceh != 0 ) {
+	    u_int8_t queue = (ceh->flags >> 18) & 3;
+	    queue_index_ = queue;
+//	    printf("Queue: %d\n",queue);
+	    rst_cw();
+	}
+//      printf("CW (pre send): %d\n",cw_);
 	
 	callback_ = h;
 	sendDATA(p);
@@ -1709,7 +1882,8 @@ Mac802_11::send(Packet *p, Handler *h)
 	 *  If the medium is IDLE, we must wait for a DIFS
 	 *  Space before transmitting.
 	 */
-       
+		
+//      printf("CW: %d\n",cw_);
 	if(mhBackoff_.busy() == 0) {
 		if(is_idle()) {
 			if (mhDefer_.busy() == 0) {
@@ -2102,7 +2276,8 @@ Mac802_11::recvDATA(Packet *p)
 	/*
 	 *  If we sent a CTS, clean up...
 	 */
-  if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
+	 
+	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
 		//if(size >= macmib_.getRTSThreshold()) {
 		if ( 	(!rceh && size >= macmib_.getRTSThreshold()) ||
 			 	( rceh && pktCTRL_)){
@@ -2142,7 +2317,7 @@ Mac802_11::recvDATA(Packet *p)
 	   suggested by Joerg Diederich <dieder@ibr.cs.tu-bs.de>. 
 	   Changed on 19th Oct'2000 */
 
-     if(dst != MAC_BROADCAST && dst == (u_int32_t)index_) {
+	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_) {
                 if (src < (u_int32_t) cache_node_count_) {
                         Host *h = &cache_[src];
 
@@ -2306,8 +2481,8 @@ Mac802_11::recvACK(Packet *p)
 
 	tx_resume();
 
-	//mac_log(p);
-  //uptarget_->recv(p->copy(), (Handler*) 0);
+	mac_log(p);
+        //uptarget_->recv(p->copy(), (Handler*) 0);
 	// nletor
 	if (p2 != 0 ){
 		uptarget_->recv(p2, (Handler*) 0);	// send feedback WIFI_EXTRA_TX

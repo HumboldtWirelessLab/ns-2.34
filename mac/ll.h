@@ -99,6 +99,7 @@ public:
         inline NsObject* uptarget() { return uptarget_; }
  	inline ARPTable *arp_table() { return arptable_; }
 	
+	inline Mac* getMac() { return mac_; } 
 protected:
 	int command(int argc, const char*const* argv);
 	

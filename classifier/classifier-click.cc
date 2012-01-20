@@ -57,6 +57,7 @@
 #include "classifier-click.h"
 #include "ll-ext.h"
 #include "clickqueue.h"
+#include "mac-802_11.h"
 
 #include "packet_anno.h"
 
@@ -426,8 +427,18 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
 	  r = 0;
 	  break;
       }
+      case SIMCLICK_GET_NODE_POSITION: {
+        int *pos = va_arg(val, int *);
+        cc->GetPosition(pos);
+        break;
+      }
 
-      default:
+      case SIMCLICK_CCA_OPERATION: {
+        int *stats = va_arg(val, int *);
+        cc->GetPerformanceCounter(0, stats);
+        break;
+      }
+     default:
 	r = -1;
 	break;
 	
@@ -728,3 +739,36 @@ ClickClassifier::GetNextPktID()
 {
 	return Agent::getnextuid();
 }
+
+int
+ClickClassifier::GetPosition(int *pos) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    pos[0] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->X());
+    pos[1] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->Y());
+    pos[2] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->Z());
+    pos[3] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->speed());
+  }
+  else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+int
+ClickClassifier::GetPerformanceCounter(int ifid, int *perf_counter)  {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((Mac802_11*)(llext->getMac()))->getPerformanceCounter(perf_counter);
+  }
+  else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+

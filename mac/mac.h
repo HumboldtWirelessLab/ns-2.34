@@ -218,6 +218,9 @@ public:
 		return dh->hdr_type();
 	}
 
+	inline Channel* getChannel() { return channel_; }
+	inline Phy* getPhy() { return netif_; }
+
 private:
         void mac_log(Packet *p) {
                 logtarget_->recv(p, (Handler*) 0);
