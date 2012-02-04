@@ -445,7 +445,18 @@ public:
 	unsigned char* data() { return data_; }
 
 	virtual int size() const { return datalen_; }
-	virtual AppData* copy() { return new PacketData(*this); }
+	virtual AppData* copy() {
+    //fprintf(stderr,"Datalen: %d %p\n",datalen_,data_);
+    //fprintf(stderr,"Data\n");
+/*    for ( int i = 0; i < datalen_; i++ ) {
+      if ( data_[i] < 16 )
+        fprintf(stderr,"0%x",data_[i]);
+      else
+        fprintf(stderr,"0%x",data_[i]);
+    }
+    fprintf(stderr,"\n");*/
+    return new PacketData(*this);
+  }
 private:
 	unsigned char* data_;
 	int datalen_;
@@ -738,11 +749,21 @@ inline void Packet::free(Packet* p)
 
 inline Packet* Packet::copy() const
 {
-	
-	Packet* p = alloc();
+	//fprintf(stderr,"Headerlen %d %p\n",hdrlen_,bits_);
+  //fprintf(stderr,"Header\n");
+  /*for ( int i = 0; i < hdrlen_; i++ ) {
+    if ( bits_[i] < 16 )
+      fprintf(stderr,"0%x",bits_[i]);
+    else
+      fprintf(stderr,"%x",bits_[i]);
+  }
+  fprintf(stderr,"\n");*/
+  Packet* p = alloc();
 	memcpy(p->bits(), bits_, hdrlen_);
-	if (data_) 
+	if (data_) {
 		p->data_ = data_->copy();
+    //fprintf(stderr,"Packet has data\n");
+  }
 	p->txinfo_.init(&txinfo_);
  
 	return (p);

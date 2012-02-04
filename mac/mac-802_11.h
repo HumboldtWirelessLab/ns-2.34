@@ -102,6 +102,14 @@ struct rts_frame {
 	u_char			rf_fcs[ETHER_FCS_LEN];
 };
 
+struct rts_frame_no_fcs {
+  u_int8_t    type;
+  u_int8_t    ctrl;
+  u_int16_t   rf_duration;
+  u_char      rf_ra[ETHER_ADDR_LEN];
+  u_char      rf_ta[ETHER_ADDR_LEN];
+};
+
 struct cts_frame {
 	struct frame_control	cf_fc;
 	u_int16_t		cf_duration;
@@ -109,11 +117,25 @@ struct cts_frame {
 	u_char			cf_fcs[ETHER_FCS_LEN];
 };
 
+struct cts_frame_no_fcs {
+  u_int8_t    type;
+  u_int8_t    ctrl;
+  u_int16_t   cf_duration;
+  u_char      cf_ra[ETHER_ADDR_LEN];
+};
+
 struct ack_frame {
 	struct frame_control	af_fc;
 	u_int16_t		af_duration;
 	u_char			af_ra[ETHER_ADDR_LEN];
 	u_char			af_fcs[ETHER_FCS_LEN];
+};
+
+struct ack_frame_no_fcs {
+  u_int8_t    type;
+  u_int8_t    ctrl;
+  u_int16_t   af_duration;
+  u_char      af_ra[ETHER_ADDR_LEN];
 };
 
 struct beacon_frame {		
