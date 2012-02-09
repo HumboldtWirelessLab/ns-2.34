@@ -370,6 +370,7 @@ private:
 	u_int32_t	Promisc;
 	u_int32_t TXFeedback;
 	u_int32_t FilterDub;
+  u_int32_t ControlFrames;
 	
 public:
 	u_int32_t	FailedCount;	
@@ -386,6 +387,8 @@ public:
        inline double getChannelTime() { return(ChannelTime);}
        inline u_int32_t getPromisc() { return(Promisc);}
        inline u_int32_t getFilterDub() { return(FilterDub);}
+       inline u_int32_t getControlFrames() { return(ControlFrames);}
+       inline u_int32_t getTXFeedback() { return(TXFeedback);}
 };
 
 

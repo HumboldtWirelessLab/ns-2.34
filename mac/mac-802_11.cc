@@ -353,6 +353,9 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
   FilterDub = 1;
   parent->bind("FilterDub_", &FilterDub);
   if ( FilterDub > 1 ) FilterDub = 1;
+  ControlFrames = 1;
+  parent->bind("ControlFrames_", &ControlFrames);
+  if ( ControlFrames > 1 ) ControlFrames = 1;
 }
 	
 
@@ -1616,17 +1619,19 @@ Mac802_11::RetransmitDATA()
 	 *  are never retransmitted.
 	 */
 	if((u_int32_t)ETHER_ADDR(mh->dh_ra) == MAC_BROADCAST) {
-    Packet* p_feedback = 0; //prepare feedback WIFI_EXTRA_TX
-    click_wifi_extra* ceh = getWifiExtra(pktTx_);
-    if (ceh != 0){
-      p_feedback = pktTx_->copy();
-      click_wifi_extra* ceh_feedback = getWifiExtra(p_feedback);
-      ceh_feedback->flags |= WIFI_EXTRA_TX;
-      ceh_feedback->silence = -95;
-      ceh_feedback->rssi = 0;
-      struct hdr_cmn* ch_feedback = HDR_CMN(p_feedback);
-      ch_feedback->direction() = hdr_cmn::UP;
-      uptarget_->recv(p_feedback, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+    if ( macmib_.getTXFeedback() == 1 ) {
+      Packet* p_feedback = 0; //prepare feedback WIFI_EXTRA_TX
+      click_wifi_extra* ceh = getWifiExtra(pktTx_);
+      if (ceh != 0){
+        p_feedback = pktTx_->copy();
+        click_wifi_extra* ceh_feedback = getWifiExtra(p_feedback);
+        ceh_feedback->flags |= WIFI_EXTRA_TX;
+        ceh_feedback->silence = -95;
+        ceh_feedback->rssi = 0;
+        struct hdr_cmn* ch_feedback = HDR_CMN(p_feedback);
+        ch_feedback->direction() = hdr_cmn::UP;
+        uptarget_->recv(p_feedback, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+      }
     }
 		Packet::free(pktTx_); 
 		pktTx_ = 0;
@@ -2204,53 +2209,61 @@ Mac802_11::recvRTS(Packet *p)
   hdr_mac802_11 *mh = HDR_MAC802_11(p);
   u_int32_t dst = ETHER_ADDR(mh->dh_ra);
 
-  //fprintf(stderr,"Pommes Mode\n");
-  Packet* p_rts = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct rts_frame_no_fcs));
-  unsigned char *rts_data = p_rts->accessdata();
-  click_wifi_extra* ceh_rts = (click_wifi_extra*)(p_rts->accessdata());
-  memset((unsigned char*)ceh_rts,0,sizeof(click_wifi_extra));
-  if (ceh_rts != 0){
-    ceh_rts->magic = WIFI_EXTRA_MAGIC;
-    ceh_rts->flags = 0;
-    ceh_rts->rate = 2;
-    ceh_rts->silence = -95;
-    ceh_rts->rssi = p->txinfo_.RxPrMadwifi;
-    ceh_rts->len = 10;
+  if (macmib_.getControlFrames() == 1) {
 
-    struct rts_frame_no_fcs *af_recv_rts = (struct rts_frame_no_fcs*)p->access(hdr_mac::offset_);
-    memcpy(&(rts_data[sizeof(click_wifi_extra)]),af_recv_rts,sizeof(struct rts_frame_no_fcs));
-    af_recv_rts = (struct rts_frame_no_fcs*)&(rts_data[sizeof(click_wifi_extra)]);
-    af_recv_rts->type = 0xb4;
-    af_recv_rts->ctrl = 0;
-    af_recv_rts->rf_ra[5] = af_recv_rts->rf_ra[3];
-    af_recv_rts->rf_ra[4] = af_recv_rts->rf_ra[2];
-    af_recv_rts->rf_ra[3] = af_recv_rts->rf_ra[1];
-    af_recv_rts->rf_ra[2] = af_recv_rts->rf_ra[0];
-    af_recv_rts->rf_ra[1] = 0;
-    af_recv_rts->rf_ra[0] = 0;
+    //fprintf(stderr,"Pommes Mode\n");
+    Packet* p_rts = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct rts_frame_no_fcs));
+    unsigned char *rts_data = p_rts->accessdata();
+    click_wifi_extra* ceh_rts = (click_wifi_extra*)(p_rts->accessdata());
+    memset((unsigned char*)ceh_rts,0,sizeof(click_wifi_extra));
+    if (ceh_rts != 0){
+      ceh_rts->magic = WIFI_EXTRA_MAGIC;
+      ceh_rts->flags = 0;
+      ceh_rts->rate = 2;
+      ceh_rts->silence = -95;
+      ceh_rts->rssi = p->txinfo_.RxPrMadwifi;
+      ceh_rts->len = 10;
 
-    af_recv_rts->rf_ra[5]++;
-    if ( af_recv_rts->rf_ra[5] == 0 ) af_recv_rts->rf_ra[4]++;
+      struct rts_frame_no_fcs *af_recv_rts = (struct rts_frame_no_fcs*)p->access(hdr_mac::offset_);
+      memcpy(&(rts_data[sizeof(click_wifi_extra)]),af_recv_rts,sizeof(struct rts_frame_no_fcs));
+      af_recv_rts = (struct rts_frame_no_fcs*)&(rts_data[sizeof(click_wifi_extra)]);
+      af_recv_rts->type = 0xb4;
+      af_recv_rts->ctrl = 0;
+      af_recv_rts->rf_ra[5] = af_recv_rts->rf_ra[3];
+      af_recv_rts->rf_ra[4] = af_recv_rts->rf_ra[2];
+      af_recv_rts->rf_ra[3] = af_recv_rts->rf_ra[1];
+      af_recv_rts->rf_ra[2] = af_recv_rts->rf_ra[0];
+      af_recv_rts->rf_ra[1] = 0;
+      af_recv_rts->rf_ra[0] = 0;
 
-    af_recv_rts->rf_ta[5] = af_recv_rts->rf_ta[3];
-    af_recv_rts->rf_ta[4] = af_recv_rts->rf_ta[2];
-    af_recv_rts->rf_ta[3] = af_recv_rts->rf_ta[1];
-    af_recv_rts->rf_ta[2] = af_recv_rts->rf_ta[0];
-    af_recv_rts->rf_ta[1] = 0;
-    af_recv_rts->rf_ta[0] = 0;
+      af_recv_rts->rf_ra[5]++;
+      if ( af_recv_rts->rf_ra[5] == 0 ) af_recv_rts->rf_ra[4]++;
 
-    af_recv_rts->rf_ta[5]++;
-    if ( af_recv_rts->rf_ta[5] == 0 ) af_recv_rts->rf_ta[4]++;
+      af_recv_rts->rf_ta[5] = af_recv_rts->rf_ta[3];
+      af_recv_rts->rf_ta[4] = af_recv_rts->rf_ta[2];
+      af_recv_rts->rf_ta[3] = af_recv_rts->rf_ta[1];
+      af_recv_rts->rf_ta[2] = af_recv_rts->rf_ta[0];
+      af_recv_rts->rf_ta[1] = 0;
+      af_recv_rts->rf_ta[0] = 0;
 
-    struct hdr_cmn* ch_rts = HDR_CMN(p_rts);
-    ch_rts->direction() = hdr_cmn::UP;
+      af_recv_rts->rf_ta[5]++;
+      if ( af_recv_rts->rf_ta[5] == 0 ) af_recv_rts->rf_ta[4]++;
 
-    uptarget_->recv(p_rts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+      struct hdr_cmn* ch_rts = HDR_CMN(p_rts);
+      ch_rts->direction() = hdr_cmn::UP;
 
-    if (dst != (u_int32_t)index_) {
-      Packet::free(p);
-      return;
+      uptarget_->recv(p_rts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+
+      if (dst != (u_int32_t)index_) {
+        Packet::free(p);
+        return;
+      }
     }
+  }
+
+  if (dst != (u_int32_t)index_) {
+    Packet::free(p);
+    return;
   }
 
 	/*
@@ -2312,43 +2325,50 @@ Mac802_11::recvCTS(Packet *p)
   hdr_mac802_11 *mh = HDR_MAC802_11(p);
   u_int32_t dst = ETHER_ADDR(mh->dh_ra);
 
-  //fprintf(stderr,"Pommes Mode\n");
-  Packet* p_cts = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct cts_frame_no_fcs));
-  unsigned char *cts_data = p_cts->accessdata();
-  click_wifi_extra* ceh_cts = (click_wifi_extra*)(p_cts->accessdata());
-  memset((unsigned char*)ceh_cts,0,sizeof(click_wifi_extra));
-  if (ceh_cts != 0){
-    ceh_cts->magic = WIFI_EXTRA_MAGIC;
-    ceh_cts->flags = 0;
-    ceh_cts->rate = 2;
-    ceh_cts->silence = -95;
-    ceh_cts->rssi = p->txinfo_.RxPrMadwifi;
-    ceh_cts->len = 10;
+  if ( macmib_.getControlFrames() == 1 ) {
+    //fprintf(stderr,"Pommes Mode\n");
+    Packet* p_cts = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct cts_frame_no_fcs));
+    unsigned char *cts_data = p_cts->accessdata();
+    click_wifi_extra* ceh_cts = (click_wifi_extra*)(p_cts->accessdata());
+    memset((unsigned char*)ceh_cts,0,sizeof(click_wifi_extra));
+    if (ceh_cts != 0){
+      ceh_cts->magic = WIFI_EXTRA_MAGIC;
+      ceh_cts->flags = 0;
+      ceh_cts->rate = 2;
+      ceh_cts->silence = -95;
+      ceh_cts->rssi = p->txinfo_.RxPrMadwifi;
+      ceh_cts->len = 10;
 
-    struct cts_frame_no_fcs *af_recv_cts = (struct cts_frame_no_fcs*)p->access(hdr_mac::offset_);
-    memcpy(&(cts_data[sizeof(click_wifi_extra)]),af_recv_cts,sizeof(struct cts_frame_no_fcs));
-    af_recv_cts = (struct cts_frame_no_fcs*)&(cts_data[sizeof(click_wifi_extra)]);
-    af_recv_cts->type = 0xc4;
-    af_recv_cts->ctrl = 0;
-    af_recv_cts->cf_ra[5] = af_recv_cts->cf_ra[3];
-    af_recv_cts->cf_ra[4] = af_recv_cts->cf_ra[2];
-    af_recv_cts->cf_ra[3] = af_recv_cts->cf_ra[1];
-    af_recv_cts->cf_ra[2] = af_recv_cts->cf_ra[0];
-    af_recv_cts->cf_ra[1] = 0;
-    af_recv_cts->cf_ra[0] = 0;
+      struct cts_frame_no_fcs *af_recv_cts = (struct cts_frame_no_fcs*)p->access(hdr_mac::offset_);
+      memcpy(&(cts_data[sizeof(click_wifi_extra)]),af_recv_cts,sizeof(struct cts_frame_no_fcs));
+      af_recv_cts = (struct cts_frame_no_fcs*)&(cts_data[sizeof(click_wifi_extra)]);
+      af_recv_cts->type = 0xc4;
+      af_recv_cts->ctrl = 0;
+      af_recv_cts->cf_ra[5] = af_recv_cts->cf_ra[3];
+      af_recv_cts->cf_ra[4] = af_recv_cts->cf_ra[2];
+      af_recv_cts->cf_ra[3] = af_recv_cts->cf_ra[1];
+      af_recv_cts->cf_ra[2] = af_recv_cts->cf_ra[0];
+      af_recv_cts->cf_ra[1] = 0;
+      af_recv_cts->cf_ra[0] = 0;
 
-    af_recv_cts->cf_ra[5]++;
-    if ( af_recv_cts->cf_ra[5] == 0 ) af_recv_cts->cf_ra[4]++;
+      af_recv_cts->cf_ra[5]++;
+      if ( af_recv_cts->cf_ra[5] == 0 ) af_recv_cts->cf_ra[4]++;
 
-    struct hdr_cmn* ch_cts = HDR_CMN(p_cts);
-    ch_cts->direction() = hdr_cmn::UP;
+      struct hdr_cmn* ch_cts = HDR_CMN(p_cts);
+      ch_cts->direction() = hdr_cmn::UP;
 
-    uptarget_->recv(p_cts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+      uptarget_->recv(p_cts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
-    if (dst != (u_int32_t)index_) {
-      Packet::free(p);
-      return;
+      if (dst != (u_int32_t)index_) {
+        Packet::free(p);
+        return;
+      }
     }
+  }
+
+  if (dst != (u_int32_t)index_) {
+    Packet::free(p);
+    return;
   }
 
 	if(tx_state_ != MAC_RTS) {
@@ -2559,49 +2579,53 @@ Mac802_11::recvACK(Packet *p)
 	}
   
   if (dst != (u_int32_t)index_) {
-    //fprintf(stderr,"Pommes Mode\n");
-    Packet* p_ack = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs));
-    unsigned char *ack_data = p_ack->accessdata();
-    click_wifi_extra* ceh_ack = (click_wifi_extra*)(p_ack->accessdata());
-    memset((unsigned char*)ceh_ack,0,sizeof(click_wifi_extra));
-    if (ceh_ack != 0){
-      ceh_ack->magic = WIFI_EXTRA_MAGIC;
-      ceh_ack->flags = 0;
-      ceh_ack->rate = 2;
-      ceh_ack->silence = -95;
-      ceh_ack->rssi = p->txinfo_.RxPrMadwifi;
-      ceh_ack->len = 10;
 
-      struct ack_frame_no_fcs *af_recv_ack = (struct ack_frame_no_fcs*)p->access(hdr_mac::offset_);
-      memcpy(&(ack_data[sizeof(click_wifi_extra)]),af_recv_ack,sizeof(struct ack_frame_no_fcs));
-      af_recv_ack = (struct ack_frame_no_fcs*)&(ack_data[sizeof(click_wifi_extra)]);
-      af_recv_ack->type = 0xd4;
-      af_recv_ack->ctrl = 0;
-      af_recv_ack->af_ra[5] = af_recv_ack->af_ra[3];
-      af_recv_ack->af_ra[4] = af_recv_ack->af_ra[2];
-      af_recv_ack->af_ra[3] = af_recv_ack->af_ra[1];
-      af_recv_ack->af_ra[2] = af_recv_ack->af_ra[0];
-      af_recv_ack->af_ra[1] = 0;
-      af_recv_ack->af_ra[0] = 0;
+    if ( (macmib_.getControlFrames() == 1) && ( macmib_.getPromisc() == 1 ) ) {
+      //fprintf(stderr,"Pommes Mode\n");
+      Packet* p_ack = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs));
+      unsigned char *ack_data = p_ack->accessdata();
+      click_wifi_extra* ceh_ack = (click_wifi_extra*)(p_ack->accessdata());
+      memset((unsigned char*)ceh_ack,0,sizeof(click_wifi_extra));
+      if (ceh_ack != 0){
+        ceh_ack->magic = WIFI_EXTRA_MAGIC;
+        ceh_ack->flags = 0;
+        ceh_ack->rate = 2;
+        ceh_ack->silence = -95;
+        ceh_ack->rssi = p->txinfo_.RxPrMadwifi;
+        ceh_ack->len = 10;
 
-      af_recv_ack->af_ra[5]++;
-      if ( af_recv_ack->af_ra[5] == 0 ) af_recv_ack->af_ra[4]++;
+        struct ack_frame_no_fcs *af_recv_ack = (struct ack_frame_no_fcs*)p->access(hdr_mac::offset_);
+        memcpy(&(ack_data[sizeof(click_wifi_extra)]),af_recv_ack,sizeof(struct ack_frame_no_fcs));
+        af_recv_ack = (struct ack_frame_no_fcs*)&(ack_data[sizeof(click_wifi_extra)]);
+        af_recv_ack->type = 0xd4;
+        af_recv_ack->ctrl = 0;
+        af_recv_ack->af_ra[5] = af_recv_ack->af_ra[3];
+        af_recv_ack->af_ra[4] = af_recv_ack->af_ra[2];
+        af_recv_ack->af_ra[3] = af_recv_ack->af_ra[1];
+        af_recv_ack->af_ra[2] = af_recv_ack->af_ra[0];
+        af_recv_ack->af_ra[1] = 0;
+        af_recv_ack->af_ra[0] = 0;
 
-      struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
-      ch_ack->direction() = hdr_cmn::UP;
+        af_recv_ack->af_ra[5]++;
+        if ( af_recv_ack->af_ra[5] == 0 ) af_recv_ack->af_ra[4]++;
 
-      uptarget_->recv(p_ack, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+        struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
+        ch_ack->direction() = hdr_cmn::UP;
 
-      Packet::free(p);
+        uptarget_->recv(p_ack, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+
+        Packet::free(p);
+      }
+
+      return;
     }
-
-    return;
   } else if (tx_state_ != MAC_SEND) {
-    //fprintf(stderr,"No TXPacket. Discard Ack\n");
+    fprintf(stderr,"No TXPacket. Discard Ack\n");
 		discard(p, DROP_MAC_INVALID_STATE);
 		return;
 	}
-	assert(pktTx_);
+
+  assert(pktTx_);
 
 	// nletor
 	Packet* p2 = 0;	//prepare feedback WIFI_EXTRA_TX
@@ -2618,36 +2642,39 @@ Mac802_11::recvACK(Packet *p)
   
   //fprintf(stderr,"Create Ack Size: %d\n",sizeof(struct ack_frame_no_fcs));
 
-	Packet* p_ack = 0;	//prepare ack
-	if (ceh != 0){
-    //fprintf(stderr,"Call copy\n");
-		p_ack = pktTx_->copy();
-		click_wifi_extra* ceh_ack = getWifiExtra(p_ack);
-		ceh_ack->flags &= ~WIFI_EXTRA_TX;
-		ceh_ack->silence = -95;
-		ceh_ack->rssi = p->txinfo_.RxPrMadwifi;
+  Packet* p_ack = 0;  //prepare ack
 
-    struct ack_frame_no_fcs *af_recv_ack = (struct ack_frame_no_fcs*)p->access(hdr_mac::offset_);
-    PacketData *ack_data = new PacketData(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs));
-    memcpy(&(ack_data->data()[sizeof(click_wifi_extra)]),af_recv_ack,sizeof(struct ack_frame_no_fcs));
-    af_recv_ack = (struct ack_frame_no_fcs*)&(ack_data->data()[sizeof(click_wifi_extra)]);
-    af_recv_ack->type = 0xd4;
-    af_recv_ack->ctrl = 0;
-    af_recv_ack->af_ra[5] = af_recv_ack->af_ra[3];
-    af_recv_ack->af_ra[4] = af_recv_ack->af_ra[2];
-    af_recv_ack->af_ra[3] = af_recv_ack->af_ra[1];
-    af_recv_ack->af_ra[2] = af_recv_ack->af_ra[0];
-    af_recv_ack->af_ra[1] = 0;
-    af_recv_ack->af_ra[0] = 0;
+  if (macmib_.getControlFrames() == 1) {
+	  if (ceh != 0){
+      //fprintf(stderr,"Call copy\n");
+		  p_ack = pktTx_->copy();
+		  click_wifi_extra* ceh_ack = getWifiExtra(p_ack);
+		  ceh_ack->flags &= ~WIFI_EXTRA_TX;
+		  ceh_ack->silence = -95;
+		  ceh_ack->rssi = p->txinfo_.RxPrMadwifi;
 
-    af_recv_ack->af_ra[5]++;
-    if ( af_recv_ack->af_ra[5] == 0 ) af_recv_ack->af_ra[4]++;
+      struct ack_frame_no_fcs *af_recv_ack = (struct ack_frame_no_fcs*)p->access(hdr_mac::offset_);
+      PacketData *ack_data = new PacketData(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs));
+      memcpy(&(ack_data->data()[sizeof(click_wifi_extra)]),af_recv_ack,sizeof(struct ack_frame_no_fcs));
+      af_recv_ack = (struct ack_frame_no_fcs*)&(ack_data->data()[sizeof(click_wifi_extra)]);
+      af_recv_ack->type = 0xd4;
+      af_recv_ack->ctrl = 0;
+      af_recv_ack->af_ra[5] = af_recv_ack->af_ra[3];
+      af_recv_ack->af_ra[4] = af_recv_ack->af_ra[2];
+      af_recv_ack->af_ra[3] = af_recv_ack->af_ra[1];
+      af_recv_ack->af_ra[2] = af_recv_ack->af_ra[0];
+      af_recv_ack->af_ra[1] = 0;
+      af_recv_ack->af_ra[0] = 0;
 
-    memcpy(ack_data->data(),ceh_ack,sizeof(click_wifi_extra));
-    p_ack->setdata(ack_data);
+      af_recv_ack->af_ra[5]++;
+      if ( af_recv_ack->af_ra[5] == 0 ) af_recv_ack->af_ra[4]++;
 
-    struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
-		ch_ack->direction() = hdr_cmn::UP; 
+      memcpy(ack_data->data(),ceh_ack,sizeof(click_wifi_extra));
+      p_ack->setdata(ack_data);
+
+      struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
+		  ch_ack->direction() = hdr_cmn::UP; 
+    }
   }
 	//!nletor
 	mhSend_.stop();
