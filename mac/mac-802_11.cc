@@ -1577,6 +1577,7 @@ Mac802_11::RetransmitRTS()
 			ceh2->flags |= WIFI_EXTRA_TX;
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
+			ch2->txfeedback() = hdr_cmn::NO;
 			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
 		discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
 			uptarget_->recv(p2, (Handler*) 0);
@@ -1630,6 +1631,7 @@ Mac802_11::RetransmitDATA()
         ceh_feedback->rssi = 0;
         struct hdr_cmn* ch_feedback = HDR_CMN(p_feedback);
         ch_feedback->direction() = hdr_cmn::UP;
+	ch_feedback->txfeedback() = hdr_cmn::YES;
         uptarget_->recv(p_feedback, (Handler*) 0); // send feedback WIFI_EXTRA_TX
       }
     }
@@ -1730,7 +1732,8 @@ Mac802_11::RetransmitDATA()
       ceh2->rssi = 0;
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
-			
+			ch2->txfeedback() = hdr_cmn::NO;
+
 			// drop packet first
 			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
 			// send feedback to madwifi 
@@ -2251,6 +2254,7 @@ Mac802_11::recvRTS(Packet *p)
 
       struct hdr_cmn* ch_rts = HDR_CMN(p_rts);
       ch_rts->direction() = hdr_cmn::UP;
+      ch_rts->txfeedback() = hdr_cmn::NO;
 
       uptarget_->recv(p_rts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
@@ -2356,6 +2360,7 @@ Mac802_11::recvCTS(Packet *p)
 
       struct hdr_cmn* ch_cts = HDR_CMN(p_cts);
       ch_cts->direction() = hdr_cmn::UP;
+      ch_cts->txfeedback() = hdr_cmn::NO;
 
       uptarget_->recv(p_cts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
@@ -2502,7 +2507,8 @@ Mac802_11::recvDATA(Packet *p)
 		
 	if ((bss_id() == addr()) && ((u_int32_t)ETHER_ADDR(dh->dh_ra)!= MAC_BROADCAST) && ((u_int32_t)ETHER_ADDR(dh->dh_3a) != ((u_int32_t)addr())) && dh->dh_fc.fc_from_ds == 0) {
 		struct hdr_cmn *ch = HDR_CMN(p);
-	
+		ch->txfeedback() = hdr_cmn::NO;
+
 				
 		u_int32_t dst = ETHER_ADDR(dh->dh_3a);
 		u_int32_t src = ETHER_ADDR(dh->dh_ta);
@@ -2524,6 +2530,7 @@ Mac802_11::recvDATA(Packet *p)
 
 		ch->addr_type() = NS_AF_ILINK;
 		ch->direction() = hdr_cmn::DOWN;
+		ch->txfeedback() = hdr_cmn::NO;
 		
 	}
 
@@ -2539,6 +2546,8 @@ Mac802_11::recvDATA(Packet *p)
 
  		ch->addr_type() = NS_AF_ILINK;
  		ch->direction() = hdr_cmn::DOWN;
+		ch->txfeedback() = hdr_cmn::NO;
+
  	}
 
 	uptarget_->recv(p, (Handler*) 0);
@@ -2611,6 +2620,7 @@ Mac802_11::recvACK(Packet *p)
 
         struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
         ch_ack->direction() = hdr_cmn::UP;
+	ch_ack->txfeedback() = hdr_cmn::NO;
 
         uptarget_->recv(p_ack, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
@@ -2638,6 +2648,7 @@ Mac802_11::recvACK(Packet *p)
 		ceh2->rssi = p->txinfo_.RxPrMadwifi;
 		struct hdr_cmn* ch2 = HDR_CMN(p2); 
 		ch2->direction() = hdr_cmn::UP; 
+		ch2->txfeedback() = hdr_cmn::YES;
 	}
   
   //fprintf(stderr,"Create Ack Size: %d\n",sizeof(struct ack_frame_no_fcs));
@@ -2674,6 +2685,7 @@ Mac802_11::recvACK(Packet *p)
 
       struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
 		  ch_ack->direction() = hdr_cmn::UP; 
+		  ch_ack->txfeedback() = hdr_cmn::NO;
     }
   }
 	//!nletor

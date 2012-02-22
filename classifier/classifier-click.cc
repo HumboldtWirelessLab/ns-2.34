@@ -226,6 +226,7 @@ ClickClassifier::route(Packet* p) {
     hdr_ip* iphdr = hdr_ip::access(p);
     simpinfo.id = chdr->uid();
     simpinfo.fid = iphdr->flowid();
+    simpinfo.txfeedback = (chdr->txfeedback() == hdr_cmn::YES)?1:0;
     hdr_raw* rhdr = hdr_raw::access(p);
     int nssubtype = rhdr->subtype;
     int clicktype = GetClickPacketType(nssubtype);
@@ -583,6 +584,7 @@ ClickClassifier::LinkLayerFailed(Packet* p) {
     hdr_ip* iphdr = hdr_ip::access(p);
     simpinfo.id = chdr->uid();
     simpinfo.fid = iphdr->flowid();
+    simpinfo.txfeedback = (chdr->txfeedback() == hdr_cmn::YES)?1:0;
     hdr_raw* rhdr = hdr_raw::access(p);
     int nssubtype = rhdr->subtype;
     int clicktype = GetClickPacketType(nssubtype);

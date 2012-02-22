@@ -579,6 +579,7 @@ enum ModulationScheme {BPSK = 0, QPSK = 1, QAM16 = 2, QAM64 = 3};
 
 struct hdr_cmn {
 	enum dir_t { DOWN= -1, NONE= 0, UP= 1 };
+	enum txfeedback_t { NO= 0, YES= 1 };
 	packet_t ptype_;	// packet type (see above)
 	int	size_;		// simulated packet size
 	int	uid_;		// unique id
@@ -600,6 +601,9 @@ struct hdr_cmn {
 	
 	// AOMDV patch
 	int aomdv_salvage_count_;
+	
+	//TXFeedback
+	txfeedback_t txfeedback_;
 	
         // called if pkt can't obtain media or isn't ack'd. not called if
         // droped by a queue
@@ -640,6 +644,7 @@ struct hdr_cmn {
 	inline double& timestamp() { return (ts_); }
 	inline int& iface() { return (iface_); }
 	inline dir_t& direction() { return (direction_); }
+	inline txfeedback_t& txfeedback() { return (txfeedback_); }
 	// monarch_begin
 	inline nsaddr_t& next_hop() { return (next_hop_); }
 	inline int& addr_type() { return (addr_type_); }
