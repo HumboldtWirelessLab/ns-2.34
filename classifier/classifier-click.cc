@@ -383,6 +383,22 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
 	  const struct timeval *when = va_arg(val, const struct timeval *);
 	  double simtime = when->tv_sec + (when->tv_usec / 1.0e6);
 	  double simdelay = simtime - Scheduler::instance().clock();
+	  if ( simdelay < 0 ) {
+	    double clock_now = Scheduler::instance().clock();
+	    int clock_sec = floor(clock_now);
+	    int clock_usec = floor((clock_now - (1.0 * clock_sec)) * 1.0e6) ;
+	    
+	    if ( (clock_sec < when->tv_sec) || ( (clock_sec == when->tv_sec) && (clock_usec < when->tv_usec))) {
+	      fprintf(stderr,"Schedule past in ns\n");
+	    } else {
+	      if ( clock_sec == when->tv_sec && clock_usec == when->tv_usec ) {
+	    	//fprintf(stderr,"schedule now in ns\n");
+		simdelay = 0.0;
+	      }	else {
+	        fprintf(stderr,"WTF ! Schedule whatever in ns\n");
+	      }        
+	    }
+	  }
 	  ClickEvent *ev = new ClickEvent;
 	  ev->simnode_ = simnode;
 	  ev->when_ = *when;
