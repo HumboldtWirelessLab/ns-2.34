@@ -1732,7 +1732,7 @@ Mac802_11::RetransmitDATA()
       ceh2->rssi = 0;
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
-			ch2->txfeedback() = hdr_cmn::NO;
+			ch2->txfeedback() = hdr_cmn::YES;
 
 			// drop packet first
 			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
