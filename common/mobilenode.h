@@ -239,6 +239,9 @@ private:
 
 
 	//int last_rt_time_;
+public:
+        int	set_destination(double x, double y, double z, double speed) { return set_destination(x, y, speed); }
+
 };
 
 #endif // ns_mobilenode_h

@@ -449,8 +449,12 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
         cc->GetPosition(pos);
         break;
       }
-
-      case SIMCLICK_CCA_OPERATION: {
+      case SIMCLICK_SET_NODE_POSITION: {
+        int *pos = va_arg(val, int *);
+        cc->SetPosition(pos);
+        break;
+      }
+      case SIMCLICK_GET_PERFORMANCE_COUNTER: {
         int *stats = va_arg(val, int *);
         cc->GetPerformanceCounter(0, stats);
         break;
@@ -767,6 +771,20 @@ ClickClassifier::GetPosition(int *pos) {
     pos[1] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->Y());
     pos[2] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->Z());
     pos[3] = round(((MobileNode*)(llext->getMac()->getPhy()->getNode()))->speed());
+  }
+  else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+int
+ClickClassifier::SetPosition(int *pos) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((MobileNode*)(llext->getMac()->getPhy()->getNode()))->set_destination((double)pos[0],(double)pos[1], (double)pos[2], (double)pos[3]);
   }
   else {
     fprintf(stderr,"ERROR: network interface does not exist\n");
