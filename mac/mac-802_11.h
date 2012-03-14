@@ -248,6 +248,7 @@ struct priority_queue {
 
 struct performance_stats {
   int current_mode;
+  bool jam;
   double ts_mode_start;
 
   double cylce_counter;
@@ -560,7 +561,7 @@ private:
 	inline void transmit(Packet *p, double timeout);
 	inline void checkBackoffTimer(void);
 	inline void postBackoff(int pri);
-	inline void setRxState(MacState newState);
+  inline void setRxState(MacState newState, bool jam);
 	inline void setTxState(MacState newState);
 
 	inline void inc_cw() {

@@ -94,7 +94,12 @@ public:
         inline double getPt() { return Pt_; }
         inline double getRXThresh() { return RXThresh_; }
         inline double getCSThresh() { return CSThresh_; }
+        inline double getCPThresh() { return CPThresh_; }
         inline double getFreq() { return freq_; }
+
+        inline void setRXThresh(double rx) { RXThresh_ = rx; }
+        inline void setCSThresh(double cs) { CSThresh_ = cs; }
+        inline void setCPThresh(double cp) { CPThresh_ = cp; }
         /* End -NEW- */
 
 	void node_sleep();

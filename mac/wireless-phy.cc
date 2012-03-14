@@ -103,7 +103,6 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 	bind("Pt_", &Pt_);
 	bind("freq_", &freq_);
 	bind("L_", &L_);
-	
 	// nletor -- multirate madwifi configuration
 	RateCount_ = 0;
 	bind("RateCount_",&RateCount_);
@@ -358,8 +357,10 @@ WirelessPhy::sendUp(Packet *p)
 		hdr_raw* rhdr = hdr_raw::access(p);
 		if (rhdr->subtype == hdr_raw::MADWIFI) {
 			ceh = (click_wifi_extra*)(p->accessdata());
+      uint32_t jammer_flag = ceh->flags & (1 << 17);
 			//u_int8_t rate = ceh->rate;
 			memset(ceh,0,sizeof(click_wifi_extra));
+      ceh->flags = jammer_flag;
 			ceh->rate = int(p->txinfo_.getRate()/500000);
 			ceh->magic = WIFI_EXTRA_MAGIC;
 			//printf("Rate is %e Rate is %i and %i %i \n",p->txinfo_.getRate(),rate,int(p->txinfo_.getRate()/500000),ceh->rate);

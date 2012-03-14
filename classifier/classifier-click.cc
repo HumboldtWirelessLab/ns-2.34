@@ -42,6 +42,8 @@
 #include <string>
 #include <stdarg.h>
 
+#include "wireless-phy.h"
+
 #include "agent.h"
 #include "packet.h"
 #include "rawpacket.h"
@@ -459,7 +461,12 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
         cc->GetPerformanceCounter(0, stats);
         break;
       }
-     default:
+      case SIMCLICK_CCA_OPERATION: {
+        int *cca = va_arg(val, int *);
+        cc->HandleCCAOperation(cca);
+        break;
+      }
+      default:
 	r = -1;
 	break;
 	
@@ -807,4 +814,30 @@ ClickClassifier::GetPerformanceCounter(int ifid, int *perf_counter)  {
   return 0;
 }
 
+int
+ClickClassifier::HandleCCAOperation(int *cca) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+
+    if ( cca[0] == 0 ) {//read
+      double rx_t = ((WirelessPhy*)(llext->getMac()->getPhy()))->getRXThresh();
+      double cs_t = ((WirelessPhy*)(llext->getMac()->getPhy()))->getCSThresh();
+      double cp_t = ((WirelessPhy*)(llext->getMac()->getPhy()))->getCPThresh();
+      //fprintf(stderr,"CCA: %f %f %f\n",rx_t,cs_t,cp_t);
+      cca[1] = round((10 * log10(cs_t)));
+      cca[2] = round((10 * log10(rx_t)));
+      cca[3] = round(cp_t);
+    }
+    if ( cca[0] == 1 ) {//set
+      ((WirelessPhy*)(llext->getMac()->getPhy()))->setCSThresh(pow(10.0,(((double)cca[1])/10.0)));
+      ((WirelessPhy*)(llext->getMac()->getPhy()))->setRXThresh(pow(10.0,(((double)cca[2])/10.0)));
+      ((WirelessPhy*)(llext->getMac()->getPhy()))->setCPThresh((double)cca[3]);
+    }
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
 

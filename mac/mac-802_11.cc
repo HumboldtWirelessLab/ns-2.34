@@ -133,7 +133,7 @@ Mac802_11::transmit(Packet *p, double timeout)
 //#define PERFORMANCE_COUNTER_DEBUG 1
 
 inline void
-Mac802_11::setRxState(MacState newState)
+Mac802_11::setRxState(MacState newState, bool jam)
 {
 #ifdef PERFORMANCE_COUNTER_DEBUG
   fprintf(stderr, "Node: %d RXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
@@ -150,12 +150,13 @@ Mac802_11::setRxState(MacState newState)
     case PERFORMANCE_MODE_IDLE:
       break;
     case PERFORMANCE_MODE_RX:
-      perf_stats_.rx_counter += diff_cycles;
+      if ( ! perf_stats_.jam ) perf_stats_.rx_counter += diff_cycles;
       perf_stats_.busy_counter += diff_cycles;
       break;
     case PERFORMANCE_MODE_TX:
-      //perf_stats_.tx_counter += diff_cycles;
-      //perf_stats_.busy_counter += diff_cycles; 
+      //caused by unicast msg (recv ack while transm. data)
+      //fprintf(stderr,"Set to RX while tranmitting");
+      //exit(0);
       break;
     case PERFORMANCE_MODE_BUSY:
       perf_stats_.busy_counter += diff_cycles;
@@ -173,6 +174,7 @@ Mac802_11::setRxState(MacState newState)
       perf_stats_.current_mode = PERFORMANCE_MODE_RX;
     }
 
+    perf_stats_.jam = jam;
     perf_stats_.ts_mode_start = Scheduler::instance().clock();
   }
 
@@ -200,7 +202,7 @@ Mac802_11::setTxState(MacState newState)
     case PERFORMANCE_MODE_IDLE:
       break;
     case PERFORMANCE_MODE_RX:
-      perf_stats_.rx_counter += diff_cycles;
+      if ( ! perf_stats_.jam ) perf_stats_.rx_counter += diff_cycles;
       perf_stats_.busy_counter += diff_cycles;
       break;
     case PERFORMANCE_MODE_TX:
@@ -217,6 +219,7 @@ Mac802_11::setTxState(MacState newState)
   } else {
     perf_stats_.current_mode = PERFORMANCE_MODE_TX;
   }
+  perf_stats_.jam = false;
   perf_stats_.ts_mode_start = Scheduler::instance().clock();
 
   tx_state_ = newState;
@@ -233,7 +236,7 @@ Mac802_11::getPerformanceCounter(int *perf_count)
     case PERFORMANCE_MODE_IDLE:
       break;
     case PERFORMANCE_MODE_RX:
-      perf_stats_.rx_counter += diff_cycles;
+      if ( ! perf_stats_.jam ) perf_stats_.rx_counter += diff_cycles;
       perf_stats_.busy_counter += diff_cycles;
       break;
     case PERFORMANCE_MODE_TX:
@@ -285,6 +288,49 @@ Mac802_11::getPerformanceCounter(int *perf_count)
   perf_stats_.tx_counter = 0.0;
 
 }
+
+// helper function
+click_wifi_extra* 
+getWifiExtra(Packet* p)
+{
+  struct hdr_cmn* chdr = HDR_CMN(p);
+  if (chdr->ptype() == PT_RAW){
+    hdr_raw* rhdr = hdr_raw::access(p);
+    if (rhdr->subtype == hdr_raw::MADWIFI) {
+      click_wifi_extra* ceh = (click_wifi_extra*)(p->accessdata());
+      if (ceh->magic == WIFI_EXTRA_MAGIC){
+        return ceh;
+      }
+    }
+  }
+  return 0;
+}
+
+click_wifi* 
+getWifi(Packet* p)
+{
+  struct hdr_cmn* chdr = HDR_CMN(p);
+  if (chdr->ptype() == PT_RAW){
+    hdr_raw* rhdr = hdr_raw::access(p);
+    if (rhdr->subtype == hdr_raw::MADWIFI) {
+      click_wifi_extra* ceh = (click_wifi_extra*)(p->accessdata());
+      if (ceh->magic == WIFI_EXTRA_MAGIC){
+        return (click_wifi*)(p->accessdata() + sizeof(click_wifi_extra));
+      }
+    }
+  }
+  return 0;
+}
+
+inline bool is_jammer_msg(Packet *p)
+{
+  click_wifi_extra* ceh = getWifiExtra(p);
+
+  if ( ceh != 0 ) return (((ceh->flags >> 17) & 1) != 0);
+
+  return false;
+}
+
 
 /* ======================================================================
    TCL Hooks for the simulator
@@ -741,7 +787,7 @@ Mac802_11::collision(Packet *p)
 {
 	switch(rx_state_) {
 	case MAC_RECV:
-		setRxState(MAC_COLL);
+    setRxState(MAC_COLL, is_jammer_msg(p));
 		/* fall through */
 	case MAC_COLL:
 		assert(pktRx_);
@@ -826,7 +872,7 @@ Mac802_11::rx_resume()
 {
 	assert(pktRx_ == 0);
 	assert(mhRecv_.busy() == 0);
-	setRxState(MAC_IDLE);
+	setRxState(MAC_IDLE, false);
 }
 
 
@@ -1235,38 +1281,6 @@ Mac802_11::check_pktTx()
 	return 0;
 }
 
-// helper function
-click_wifi_extra* 
-getWifiExtra(Packet* p)
-{
-  	struct hdr_cmn* chdr = HDR_CMN(p);
-	if (chdr->ptype() == PT_RAW){
-		hdr_raw* rhdr = hdr_raw::access(p);
-		if (rhdr->subtype == hdr_raw::MADWIFI) {
-			click_wifi_extra* ceh = (click_wifi_extra*)(p->accessdata());
-			if (ceh->magic == WIFI_EXTRA_MAGIC){
-				return ceh;
-			}			
-		}
-	}
-	return 0;
-}
-
-click_wifi* 
-getWifi(Packet* p)
-{
-  	struct hdr_cmn* chdr = HDR_CMN(p);
-	if (chdr->ptype() == PT_RAW){
-		hdr_raw* rhdr = hdr_raw::access(p);
-		if (rhdr->subtype == hdr_raw::MADWIFI) {
-			click_wifi_extra* ceh = (click_wifi_extra*)(p->accessdata());
-			if (ceh->magic == WIFI_EXTRA_MAGIC){
-				return (click_wifi*)(p->accessdata() + sizeof(click_wifi_extra));
-			}			
-		}
-	}
-	return 0;
-}
 /*
  * Low-level transmit functions that actually place the packet onto
  * the channel.
@@ -1631,7 +1645,7 @@ Mac802_11::RetransmitDATA()
         ceh_feedback->rssi = 0;
         struct hdr_cmn* ch_feedback = HDR_CMN(p_feedback);
         ch_feedback->direction() = hdr_cmn::UP;
-	ch_feedback->txfeedback() = hdr_cmn::YES;
+        ch_feedback->txfeedback() = hdr_cmn::YES;
         uptarget_->recv(p_feedback, (Handler*) 0); // send feedback WIFI_EXTRA_TX
       }
     }
@@ -1897,7 +1911,7 @@ Mac802_11::send(Packet *p, Handler *h)
 	if ( ceh != 0 ) {
 	    u_int8_t queue = (ceh->flags >> 18) & 3;
 	    queue_index_ = queue;
-//	    printf("Queue: %d\n",queue);
+      //printf("Queue: %d\n",queue);
 	    rst_cw();
 	}
 //      printf("CW (pre send): %d\n",cw_);
@@ -1987,7 +2001,7 @@ Mac802_11::recv(Packet *p, Handler *h)
 	}
 
 	if(rx_state_ == MAC_IDLE) {
-		setRxState(MAC_RECV);
+		setRxState(MAC_RECV, is_jammer_msg(p));
 		pktRx_ = p;
 		/*
 		 * Schedule the reception of this packet, in
@@ -2517,7 +2531,7 @@ Mac802_11::recvDATA(Packet *p)
 		 */
 		
 		if (dst == MAC_BROADCAST) {
-			uptarget_->recv(p->copy(), (Handler*) 0);
+      if ( ! is_jammer_msg(p) ) uptarget_->recv(p->copy(), (Handler*) 0);
 		}
 
 		ch->next_hop() = dst;
@@ -2550,7 +2564,8 @@ Mac802_11::recvDATA(Packet *p)
 
  	}
 
-	uptarget_->recv(p, (Handler*) 0);
+  if ( ! is_jammer_msg(p) ) uptarget_->recv(p, (Handler*) 0);
+  else discard(p, DROP_MAC_BUSY); //TODO: is that the right way to discard (kill) the jammer msg
 	
 }
 
@@ -3857,4 +3872,3 @@ done:
 	temp = queue_head;
 	
 }
-

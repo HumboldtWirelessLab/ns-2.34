@@ -147,6 +147,7 @@ class ClickClassifier : public ExtClassifier, public ExtRouter,
   int GetPosition(int *pos);
   int SetPosition(int *pos);
   int GetPerformanceCounter(int ifid, int *perf_counter);
+  int HandleCCAOperation(int *cca);
 
  protected:
   int GetNSSubtype(int clicktype);
