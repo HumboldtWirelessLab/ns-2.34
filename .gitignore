@@ -23,3 +23,12 @@ ptypes2tcl
 .configure
 *.o
 tcl/lib/ns-autoconf.tcl
+indep-utils/cmu-scen-gen/setdest/calcdest
+indep-utils/cmu-scen-gen/setdest/setdest
+indep-utils/webtrace-conv/dec/dec-tr-stat
+indep-utils/webtrace-conv/epa/epa-tr-stat
+indep-utils/webtrace-conv/nlanr/nlanr-tr-stat
+indep-utils/webtrace-conv/ucb/ucb-tr-stat
+nse
+nstk
+
