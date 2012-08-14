@@ -408,6 +408,10 @@ MobileNode::set_destination(double x, double y, double s)
 {
 	assert(initialized());
 
+  if(x >= T_->upperX() || x <= T_->lowerX() || y >= T_->upperY() || y <= T_->lowerY()) {
+    fprintf(stderr,"Position is out of range x: %f y: %f UpX: %f LowX: %f UpY: %f LowY: %f Time: %f\n",x,y,T_->upperX(), T_->lowerX(), T_->upperY(), T_->lowerY(), Scheduler::instance().clock());
+  }
+
 	if(x >= T_->upperX() || x <= T_->lowerX())
 		return -1;
 	if(y >= T_->upperY() || y <= T_->lowerY())
