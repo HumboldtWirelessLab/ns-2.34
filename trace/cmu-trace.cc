@@ -99,7 +99,7 @@ void CMUTrace::addPacketTracer(PacketTracer *pt)
 }
 
 
-//#define LOG_POSITION
+#define LOG_POSITION
 
 //extern char* pt_names[];
 
@@ -271,9 +271,9 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
 #endif
 	sprintf(pt_->buffer() + offset,
 #ifdef LOG_POSITION
-		"%c %.9f %d (%6.2f %6.2f) %3s %4s %d %s %d ",
+		"%c %.9f %d %6.2f %6.2f %d %3s %4s %d %s %d ",
 #else
-		"%c %.9f _%d_ %3s %4s %d %s %d",
+		"%c %.9f %d %d %3s %4s %d %s %d",
 #endif
 		op,
 		Scheduler::instance().clock(),
@@ -282,6 +282,7 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
                 x,
                 y,
 #endif
+		((ch->txfeedback() == hdr_cmn::YES)?1:0),          //feedback ?
 		tracename,
 		why,
 		
