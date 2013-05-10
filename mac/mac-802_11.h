@@ -327,6 +327,10 @@ public:
 	inline u_int32_t getPROBEREPlen() {		
 		return(getPLCPhdrLen() + sizeof(struct proberep_frame)); 
 	}
+
+	void setBackoffQueueInfo(int *boq);
+	void getBackoffQueueInfo(int *boq);
+
  private:
 
 
@@ -430,7 +434,9 @@ public:
         void trace_event(char *, Packet *);
         EventTrace *et_;
 
-  void getPerformanceCounter(int *perf_count);
+        void getPerformanceCounter(int *perf_count);
+        void setBackoffQueueInfo(int *boq);
+        void getBackoffQueueInfo(int *boq);
 
 protected:
 	void	backoffHandler(void);

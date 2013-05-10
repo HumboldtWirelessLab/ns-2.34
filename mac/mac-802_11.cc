@@ -331,6 +331,17 @@ inline bool is_jammer_msg(Packet *p)
   return false;
 }
 
+void
+Mac802_11::setBackoffQueueInfo(int *boq)
+{
+  phymib_.setBackoffQueueInfo(boq);
+}
+
+void
+Mac802_11::getBackoffQueueInfo(int *boq)
+{
+  phymib_.getBackoffQueueInfo(boq);
+}
 
 /* ======================================================================
    TCL Hooks for the simulator
@@ -373,6 +384,29 @@ PHY_MIB::PHY_MIB(Mac802_11 *parent)
 	parent->bind("PreambleLength_", &PreambleLength);
 	parent->bind("PLCPHeaderLength_", &PLCPHeaderLength);
 	parent->bind_bw("PLCPDataRate_", &PLCPDataRate);
+}
+
+void
+PHY_MIB::setBackoffQueueInfo(int *boq)
+{
+  int mq = MAC_Max_HW_Queue;
+  if ( boq[0] < mq ) mq = boq[0];
+
+  for ( int q = 0; q < mq; q++) {
+     CWMin[q] = boq[1 + q];
+     CWMax[q] = boq[1 + boq[0] + q];
+  }
+}
+
+void
+PHY_MIB::getBackoffQueueInfo(int *boq)
+{
+  if ( boq[0] > MAC_Max_HW_Queue ) boq[0] = MAC_Max_HW_Queue;
+
+  for ( int q = 0; q < boq[0]; q++) {
+     boq[1 + q] = CWMin[q];
+     boq[1 + boq[0] + q] = CWMax[q];
+  }
 }
 
 MAC_MIB::MAC_MIB(Mac802_11 *parent)

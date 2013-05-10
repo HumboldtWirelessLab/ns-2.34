@@ -466,6 +466,16 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
         cc->HandleCCAOperation(cca);
         break;
       }
+      case SIMCLICK_WIFI_SET_BACKOFF: {
+        int *boq = va_arg(val, int *);
+        cc->SetBackoffQueueInfo(boq);
+        break;
+      }
+      case SIMCLICK_WIFI_GET_BACKOFF: {
+        int *boq = va_arg(val, int *);
+        cc->GetBackoffQueueInfo(boq);
+        break;
+      }
       default:
 	r = -1;
 	break;
@@ -840,4 +850,32 @@ ClickClassifier::HandleCCAOperation(int *cca) {
 
   return 0;
 }
+
+int
+ClickClassifier::GetBackoffQueueInfo(int *boq) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((Mac802_11*)(llext->getMac()))->getBackoffQueueInfo(boq);
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+int
+ClickClassifier::SetBackoffQueueInfo(int *boq) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((Mac802_11*)(llext->getMac()))->setBackoffQueueInfo(boq);
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+
 

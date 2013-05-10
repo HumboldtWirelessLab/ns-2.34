@@ -148,6 +148,8 @@ class ClickClassifier : public ExtClassifier, public ExtRouter,
   int SetPosition(int *pos);
   int GetPerformanceCounter(int ifid, int *perf_counter);
   int HandleCCAOperation(int *cca);
+  int SetBackoffQueueInfo(int *boq);
+  int GetBackoffQueueInfo(int *boq);
 
  protected:
   int GetNSSubtype(int clicktype);
