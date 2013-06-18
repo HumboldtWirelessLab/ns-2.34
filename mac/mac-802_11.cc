@@ -436,6 +436,8 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
   ControlFrames = 1;
   parent->bind("ControlFrames_", &ControlFrames);
   if ( ControlFrames > 1 ) ControlFrames = 1;
+
+  //fprintf(stderr,"Short/Long: %d/%d\n",ShortRetryLimit,LongRetryLimit);
 }
 	
 
@@ -1619,6 +1621,7 @@ Mac802_11::RetransmitRTS()
                 }
 
 		if (ceh != 0){
+			ceh->retries--;
 			Packet* p2 = pktTx_->copy();
 			click_wifi_extra* ceh2 = getWifiExtra(p2);
 			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
@@ -1627,7 +1630,7 @@ Mac802_11::RetransmitRTS()
 			ch2->direction() = hdr_cmn::UP; 
 			ch2->txfeedback() = hdr_cmn::NO;
 			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
-		discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
 			uptarget_->recv(p2, (Handler*) 0);
 		
 		} else {
@@ -1772,12 +1775,13 @@ Mac802_11::RetransmitDATA()
                 }
 
 		if (ceh != 0){
+			ceh->retries--;
 			Packet* p2 = pktTx_->copy();
 			click_wifi_extra* ceh2 = getWifiExtra(p2);
 			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
 			ceh2->flags |= WIFI_EXTRA_TX;
-      ceh2->silence = -95;
-      ceh2->rssi = 0;
+			ceh2->silence = -95;
+			ceh2->rssi = 0;
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
 			ch2->txfeedback() = hdr_cmn::YES;
