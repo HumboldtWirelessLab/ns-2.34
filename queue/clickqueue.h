@@ -52,7 +52,10 @@ class ClickQueue : public Queue {
 
 	int is_full();
 	int ready();
-  protected:
+
+  int resume_on_abort();
+
+ protected:
 	int command(int argc, const char*const* argv); 
 	ClickClassifier* cc_;
 	virtual void on_unblock();

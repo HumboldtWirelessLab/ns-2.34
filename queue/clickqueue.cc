@@ -119,6 +119,22 @@ void ClickQueue::on_unblock() {
 	}
 }
 
+int ClickQueue::resume_on_abort() {
+  double now = Scheduler::instance().clock();
+  Packet* p = deque();
+  if (p != 0) {
+    fprintf(stderr,"deque p??\n");
+    exit(1);
+  } else {
+    utilUpdate(last_change_, now, blocked_);
+    last_change_ = now;
+    blocked_ = 0;
+  }
+
+  return 0;
+}
+
+
 #if 0
 void ClickQueue::runclick() {
 	if (is_full()) {

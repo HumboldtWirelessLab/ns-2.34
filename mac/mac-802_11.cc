@@ -66,6 +66,22 @@
 #include "agent.h"
 #include "basetrace.h"
 
+#include <click/../../elements/brn/routing/identity/txcontrol.h>
+
+#include <stdlib.h>
+#include <ctype.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <map>
+#include <string>
+#include <stdarg.h>
+#include "ll-ext.h"
+#include "extrouter.h"
+#include <click/simclick.h>
+#include "classifier-ext.h"
+#include "classifier-click.h"
+#include "classifier-click.h"
+#include "clickqueue.h"
 
 /* our backoff timer doesn't count down in idle times during a
  * frame-exchange sequence as the mac tx state isn't idle; genreally
@@ -250,13 +266,17 @@ Mac802_11::getPerformanceCounter(int *perf_count)
 
   perf_stats_.ts_mode_start = Scheduler::instance().clock();
 
+#ifdef PERFORMANCE_COUNTER_DEBUG
   double idle = 0.0;
+#endif
   double busy = 0.0;
   double rx = 0.0;
   double tx = 0.0;
 
   if ( perf_stats_.cylce_counter > 0 ) {
+#ifdef PERFORMANCE_COUNTER_DEBUG
     idle = (100 * (perf_stats_.cylce_counter-perf_stats_.busy_counter))/perf_stats_.cylce_counter;
+#endif
     busy = (100 * perf_stats_.busy_counter)/perf_stats_.cylce_counter;
     rx = (100 * perf_stats_.rx_counter)/perf_stats_.cylce_counter;
     tx = (100 * perf_stats_.tx_counter)/perf_stats_.cylce_counter;
@@ -341,6 +361,75 @@ void
 Mac802_11::getBackoffQueueInfo(int *boq)
 {
   phymib_.getBackoffQueueInfo(boq);
+}
+
+void
+Mac802_11::handleTXControl(char *txc)
+{
+  struct tx_control_header* txch = (struct tx_control_header*)txc;
+
+  if ( txch->operation == TX_ABORT ) {
+    if ( tx_control_state_ == TX_CONTROL_BUSY ) {
+      if ( memcmp(txch->dst_ea, tx_target_mac_, 6) == 0 ) {
+
+        tx_control_state_ = TX_CONTROL_ABORT;
+
+#if 1
+        transmit_abort(pktTx_, 0);
+        tx_control_state_ = TX_CONTROL_IDLE;
+#endif
+      } else {
+        fprintf(stderr,"wrong mac\n");
+        txch->flags = 2;
+      }
+    } else if ( tx_control_state_ == TX_CONTROL_ABORT ) {
+      fprintf(stderr,"Abort already on the way\n");
+      if ( memcmp(txch->dst_ea, tx_target_mac_, 6) != 0 ) {
+        fprintf(stderr,"Abort for another mac??\n");
+      }
+    } else {
+      fprintf(stderr,"is idle\n");
+      txch->flags = 1;
+    }
+  }
+}
+
+inline void
+Mac802_11::transmit_abort(Packet *p, double timeout)
+{
+  ssrc_ = 0;
+  slrc_ = 0;
+  rst_cw();
+
+  tx_active_ = 0;
+  tx_control_state_ = TX_CONTROL_IDLE;
+
+  setTxState(MAC_IDLE);
+
+  pktTx_ = 0;
+
+  mhSend_.stop();
+  mhIF_.stop();
+  mhBackoff_.pause();
+
+  mhBackoff_.start(cw_, is_idle());
+
+  if ( macmib_.getTXFeedback() == 1 ) {
+    click_wifi_extra* ceh_feedback = getWifiExtra(p);
+    if (ceh_feedback != 0){
+      ceh_feedback->flags |= WIFI_EXTRA_TX;
+      ceh_feedback->flags |= WIFI_EXTRA_TX_FAIL;
+      ceh_feedback->silence = -95;
+      ceh_feedback->rssi = 0;
+      struct hdr_cmn* ch_feedback = HDR_CMN(p);
+      ch_feedback->direction() = hdr_cmn::UP;
+      ch_feedback->txfeedback() = hdr_cmn::YES;
+
+      uptarget_->recv(p, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+      ((ClickQueue*)((LLExt*)((Connector*)uptarget_)->target())->ifq())->resume_on_abort();
+
+    }
+  }
 }
 
 /* ======================================================================
@@ -518,6 +607,10 @@ Mac802_11::Mac802_11() :
   perf_stats_.busy_counter = 0.0;
   perf_stats_.rx_counter = 0.0;
   perf_stats_.tx_counter = 0.0;
+
+  tx_control_state_ = TX_CONTROL_IDLE;
+  memset(tx_target_mac_,0,6);
+  memset(tx_source_mac_,0,6);
 
 }
 
@@ -1493,7 +1586,6 @@ Mac802_11::sendDATA(Packet *p)
 	hdr_cmn* ch = HDR_CMN(p);
 	struct hdr_mac802_11* dh = HDR_MAC802_11(p);
 	u_int32_t dst = ETHER_ADDR(dh->dh_ra);
-  //fprintf(stderr,"Dst: %d (%d %d %d %d %d %d)\n",dst,dh->dh_ra[0],dh->dh_ra[1],dh->dh_ra[2],dh->dh_ra[3],dh->dh_ra[4],dh->dh_ra[5]);
 	assert(pktTx_ == 0);
 
 	/*
@@ -1628,7 +1720,7 @@ Mac802_11::RetransmitRTS()
 			ceh2->flags |= WIFI_EXTRA_TX;
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
-			ch2->txfeedback() = hdr_cmn::NO;
+			ch2->txfeedback() = hdr_cmn::NO; //TODO: why no txfeedback. isn't it the data frame (test with click and rts/cts)
 			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
 			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
 			uptarget_->recv(p2, (Handler*) 0);
@@ -1684,6 +1776,7 @@ Mac802_11::RetransmitDATA()
         ch_feedback->direction() = hdr_cmn::UP;
         ch_feedback->txfeedback() = hdr_cmn::YES;
         uptarget_->recv(p_feedback, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+        tx_control_state_ = TX_CONTROL_IDLE;
       }
     }
 		Packet::free(pktTx_); 
@@ -1727,7 +1820,7 @@ Mac802_11::RetransmitDATA()
 	double count = *rcount;
 	click_wifi_extra* ceh = getWifiExtra(pktTx_);
 
-	if ((ceh != 0) && (ceh->max_tries != 0)){
+	if ((ceh != 0) && (ceh->max_tries != 0) && (tx_control_state_ != TX_CONTROL_ABORT)){
 		ceh->retries = (*rcount);
 			
 		if (count < ceh->max_tries){
@@ -1754,7 +1847,7 @@ Mac802_11::RetransmitDATA()
 		}
 		
 	} else {
-		if(*rcount >= thresh) {
+		if ((*rcount >= thresh) || (tx_control_state_ == TX_CONTROL_ABORT)) {
 			failure = true;	
 		}	
 	}
@@ -1785,12 +1878,11 @@ Mac802_11::RetransmitDATA()
 			struct hdr_cmn* ch2 = HDR_CMN(p2); 
 			ch2->direction() = hdr_cmn::UP; 
 			ch2->txfeedback() = hdr_cmn::YES;
-
 			// drop packet first
 			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
 			// send feedback to madwifi 
 			uptarget_->recv(p2, (Handler*) 0);
-		
+			tx_control_state_ = TX_CONTROL_IDLE;
 		} else {
 			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
 			//printf("(%d)DATA discarded: count exceeded\n",index_);
@@ -1935,8 +2027,11 @@ double rTime;
 void
 Mac802_11::send(Packet *p, Handler *h)
 {
+  uint8_t macbcast[] = {255,255,255,255,255,255};
+
 	double rTime;
 	struct hdr_mac802_11* dh = HDR_MAC802_11(p);
+  uint8_t *dst_mac = dh->dh_ra;
 
 	EnergyModel *em = netif_->node()->energy_model();
 	if (em && em->sleep()) {
@@ -1951,7 +2046,16 @@ Mac802_11::send(Packet *p, Handler *h)
 	    queue_index_ = queue;
       //printf("Queue: %d\n",queue);
 	    rst_cw();
+      dst_mac = &((uint8_t*)&ceh[1])[4];
 	}
+	
+	if ( memcmp(dst_mac,macbcast,6) != 0 ) {
+	    memcpy(tx_target_mac_, dst_mac, 6);
+	    memcpy(tx_source_mac_, &((uint8_t*)&ceh[1])[10], 6);
+	}
+
+	tx_control_state_ = TX_CONTROL_BUSY;
+
 //      printf("CW (pre send): %d\n",cw_);
 	
 	callback_ = h;
@@ -2639,11 +2743,11 @@ Mac802_11::recvACK(Packet *p)
 		mac_log(p);
 		return;
 	}
-  
+
   if (dst != (u_int32_t)index_) {
 
     if ( (macmib_.getControlFrames() == 1) && ( macmib_.getPromisc() == 1 ) ) {
-      //fprintf(stderr,"Pommes Mode\n");
+      //fprintf(stderr,"Pommes Mode, recv ack\n");
       Packet* p_ack = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs));
       unsigned char *ack_data = p_ack->accessdata();
       click_wifi_extra* ceh_ack = (click_wifi_extra*)(p_ack->accessdata());
@@ -2673,7 +2777,7 @@ Mac802_11::recvACK(Packet *p)
 
         struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
         ch_ack->direction() = hdr_cmn::UP;
-	ch_ack->txfeedback() = hdr_cmn::NO;
+        ch_ack->txfeedback() = hdr_cmn::NO;
 
         uptarget_->recv(p_ack, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
@@ -2683,7 +2787,7 @@ Mac802_11::recvACK(Packet *p)
       return;
     }
   } else if (tx_state_ != MAC_SEND) {
-    fprintf(stderr,"No TXPacket. Discard Ack\n");
+		//fprintf(stderr,"No TXPacket. Discard Ack\n");
 		discard(p, DROP_MAC_INVALID_STATE);
 		return;
 	}
@@ -2703,7 +2807,7 @@ Mac802_11::recvACK(Packet *p)
 		ch2->direction() = hdr_cmn::UP; 
 		ch2->txfeedback() = hdr_cmn::YES;
 	}
-  
+
   //fprintf(stderr,"Create Ack Size: %d\n",sizeof(struct ack_frame_no_fcs));
 
   Packet* p_ack = 0;  //prepare ack
@@ -2711,6 +2815,7 @@ Mac802_11::recvACK(Packet *p)
   if (macmib_.getControlFrames() == 1) {
 	  if (ceh != 0){
       //fprintf(stderr,"Call copy\n");
+      //fprintf(stderr,"recv ack\n");
 		  p_ack = pktTx_->copy();
 		  click_wifi_extra* ceh_ack = getWifiExtra(p_ack);
 		  ceh_ack->flags &= ~WIFI_EXTRA_TX;
@@ -2737,8 +2842,8 @@ Mac802_11::recvACK(Packet *p)
       p_ack->setdata(ack_data);
 
       struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
-		  ch_ack->direction() = hdr_cmn::UP; 
-		  ch_ack->txfeedback() = hdr_cmn::NO;
+      ch_ack->direction() = hdr_cmn::UP;
+      ch_ack->txfeedback() = hdr_cmn::NO;
     }
   }
 	//!nletor
@@ -2770,10 +2875,13 @@ Mac802_11::recvACK(Packet *p)
 	tx_resume();
 
 	mac_log(p);
-        //uptarget_->recv(p->copy(), (Handler*) 0);
+
+  tx_control_state_ = TX_CONTROL_IDLE;
+  //uptarget_->recv(p->copy(), (Handler*) 0);
 	// nletor
   if (p_ack != 0 ){
-    uptarget_->recv(p_ack, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+    //fprintf(stderr, "send up ack\n");
+    uptarget_->recv(p_ack, (Handler*) 0); // send ack
   }
   if (p2 != 0 ){
 		uptarget_->recv(p2, (Handler*) 0);	// send feedback WIFI_EXTRA_TX
@@ -2966,9 +3074,9 @@ Mac802_11::recvBEACON(Packet *p)
 		discard(p, DROP_MAC_BUSY);
 		return;
 	}
-	u_int32_t bss_id, src;
+	u_int32_t /*bss_id,*/ src;
 
-	bss_id = ETHER_ADDR(bf->bf_3a);
+	//bss_id = ETHER_ADDR(bf->bf_3a);
  	src = ETHER_ADDR(bf->bf_ta);
 	infra_mode_ = 1;
 
@@ -3240,9 +3348,9 @@ Mac802_11::recvASSOCREQ(Packet *p)
 		discard(p, DROP_MAC_BUSY);
 		return;
 	}
-	u_int32_t bss_id, src;
+	u_int32_t /*bss_id,*/ src;
 	
-	bss_id = ETHER_ADDR(acrqf->acrqf_3a);
+	//bss_id = ETHER_ADDR(acrqf->acrqf_3a);
  	src = ETHER_ADDR(acrqf->acrqf_ta);
 	
 	if (!pktASSOCREP_) {
@@ -3718,8 +3826,8 @@ Mac802_11::recvPROBEREQ(Packet *p)
 		discard(p, DROP_MAC_BUSY);
 		return;
 	}
-	u_int32_t bss_id, src;
-	bss_id = ETHER_ADDR(prrqf->prrqf_3a);
+	u_int32_t /*bss_id,*/ src;
+	//bss_id = ETHER_ADDR(prrqf->prrqf_3a);
  	src = ETHER_ADDR(prrqf->prrqf_ta);
 	
 	if (!pktPROBEREP_) {
@@ -3740,11 +3848,11 @@ Mac802_11::recvPROBEREP(Packet *p)
 {
 	struct proberep_frame *prrpf = (struct proberep_frame*)p->access(hdr_mac::offset_);
 
-	u_int32_t bss_id, src;
+	u_int32_t /*bss_id,*/ src;
 
 	Pr = p->txinfo_.RxPr;
  	src = ETHER_ADDR(prrpf->prrpf_ta);
-	bss_id = ETHER_ADDR(prrpf->prrpf_ta);
+	//bss_id = ETHER_ADDR(prrpf->prrpf_ta);
 	
 	update_ap_table(src,Pr);
 		
@@ -3794,7 +3902,7 @@ int Mac802_11::strongest_ap() {
 	std::list<ap_table>::iterator it;
 	it=ap_list1.begin();
 	double max_power;
-	int ap;
+	int ap = (*(ap_list1.begin())).ap_id;
 	max_power = 0;
 	if (it == ap_list1.end()) {
 		return -1;

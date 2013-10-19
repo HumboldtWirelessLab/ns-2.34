@@ -353,7 +353,8 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
 
       case SIMCLICK_SUPPORTS: {
 	  int othercmd = va_arg(val, int);
-	  r = othercmd >= 0 && othercmd <= SIMCLICK_CHANGE_CHANNEL;
+	  r = (othercmd >= 0 && othercmd <= SIMCLICK_CHANGE_CHANNEL) ||
+	      (othercmd >= SIMCLICK_GET_NODE_POSITION && othercmd <= SIMCLICK_WIFI_TX_CONTROL);
 	  break;
       }
 
@@ -389,7 +390,7 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
 	    double clock_now = Scheduler::instance().clock();
 	    int clock_sec = floor(clock_now);
 	    int clock_usec = floor((clock_now - (1.0 * clock_sec)) * 1.0e6) ;
-	    
+
 	    if ( (clock_sec < when->tv_sec) || ( (clock_sec == when->tv_sec) && (clock_usec < when->tv_usec))) {
 	      fprintf(stderr,"Schedule past in ns\n");
 	    } else {
@@ -474,6 +475,11 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
       case SIMCLICK_WIFI_GET_BACKOFF: {
         int *boq = va_arg(val, int *);
         cc->GetBackoffQueueInfo(boq);
+        break;
+      }
+      case SIMCLICK_WIFI_TX_CONTROL: {
+        char *txch = va_arg(val, char *);
+        cc->HandleTXControl(txch);
         break;
       }
       default:
@@ -878,4 +884,16 @@ ClickClassifier::SetBackoffQueueInfo(int *boq) {
 }
 
 
+int
+ClickClassifier::HandleTXControl(char *txc) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((Mac802_11*)(llext->getMac()))->handleTXControl(txc);
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
 

@@ -437,6 +437,7 @@ public:
         void getPerformanceCounter(int *perf_count);
         void setBackoffQueueInfo(int *boq);
         void getBackoffQueueInfo(int *boq);
+        void handleTXControl(char *txc);
 
 protected:
 	void	backoffHandler(void);
@@ -564,6 +565,7 @@ private:
 	double txtime(double psz, double drt);
 	double txtime(int bytes) { /* clobber inherited txtime() */ abort(); return 0;}
 
+	inline void transmit_abort(Packet *p, double timeout);
 	inline void transmit(Packet *p, double timeout);
 	inline void checkBackoffTimer(void);
 	inline void postBackoff(int pri);
@@ -672,6 +674,11 @@ private:
 	std::list<struct ap_table> ap_list1;
 
   struct performance_stats perf_stats_;
+
+  uint8_t tx_source_mac_[6];
+  uint8_t tx_target_mac_[6];
+  enum    {TX_CONTROL_IDLE = 0, TX_CONTROL_BUSY = 1, TX_CONTROL_ABORT = 2};
+  uint8_t tx_control_state_;
 };
 
 #endif /* __mac_80211_h__ */
