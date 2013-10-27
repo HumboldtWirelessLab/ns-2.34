@@ -655,6 +655,7 @@ private:
 	u_int32_t	queue_index_;
 	u_int32_t	ssrc_;		// STA Short Retry Count
 	u_int32_t	slrc_;		// STA Long Retry Count
+  u_int32_t tx_count;    // STA Long Retry Count
 
 	int		min_frame_len_;
 

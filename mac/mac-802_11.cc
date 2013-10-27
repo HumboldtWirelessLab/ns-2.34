@@ -67,6 +67,7 @@
 #include "basetrace.h"
 
 #include <click/../../elements/brn/routing/identity/txcontrol.h>
+#include <click/../../elements/brn/wifi/brnwifi.hh>
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -114,7 +115,8 @@ inline void
 Mac802_11::transmit(Packet *p, double timeout)
 {
 	tx_active_ = 1;
-	
+  if ( p == pktTx_ ) tx_count++;
+
 	if (EOTtarget_) {
 		assert (eotPacket_ == NULL);
 		eotPacket_ = p->copy();
@@ -416,9 +418,15 @@ Mac802_11::transmit_abort(Packet *p, double timeout)
 
   if ( macmib_.getTXFeedback() == 1 ) {
     click_wifi_extra* ceh_feedback = getWifiExtra(p);
-    if (ceh_feedback != 0){
+    if (ceh_feedback != 0) {
+
+      //struct hdr_cmn *ch = HDR_CMN(p);
+      //u_int32_t *rcount = ((u_int32_t) ch->size() <= macmib_.getRTSThreshold())?&ssrc_:&slrc_;
+
+      ceh_feedback->retries = tx_count;//(*rcount);
       ceh_feedback->flags |= WIFI_EXTRA_TX;
       ceh_feedback->flags |= WIFI_EXTRA_TX_FAIL;
+      ceh_feedback->flags |= Click::WIFI_EXTRA_TX_ABORT;
       ceh_feedback->silence = -95;
       ceh_feedback->rssi = 0;
       struct hdr_cmn* ch_feedback = HDR_CMN(p);
@@ -2038,6 +2046,8 @@ Mac802_11::send(Packet *p, Handler *h)
 		em->set_node_sleep(0);
 		em->set_node_state(EnergyModel::INROUTE);
 	}
+
+	tx_count = 0;
 
 	click_wifi_extra* ceh = getWifiExtra(p);
 
