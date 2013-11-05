@@ -1855,6 +1855,8 @@ Mac802_11::RetransmitDATA()
 		}
 		
 	} else {
+    if (ceh->max_tries == 0) ceh->retries = (*rcount); //TODO: workaround. fix it (no tries in the case that max_tries == 0 (missing setTXRate in click) and TXfailure
+
 		if ((*rcount >= thresh) || (tx_control_state_ == TX_CONTROL_ABORT)) {
 			failure = true;	
 		}	
@@ -2057,6 +2059,7 @@ Mac802_11::send(Packet *p, Handler *h)
       //printf("Queue: %d\n",queue);
 	    rst_cw();
       dst_mac = &((uint8_t*)&ceh[1])[4];
+      ceh->retries = 0; //reset retries
 	}
 	
 	if ( memcmp(dst_mac,macbcast,6) != 0 ) {
