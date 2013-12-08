@@ -409,6 +409,7 @@ Mac802_11::transmit_abort(Packet *p, double timeout)
   setTxState(MAC_IDLE);
 
   pktTx_ = 0;
+  pktRTS_ = 0;
 
   mhSend_.stop();
   mhIF_.stop();
