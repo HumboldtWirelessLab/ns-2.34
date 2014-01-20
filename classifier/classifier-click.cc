@@ -63,6 +63,8 @@
 
 #include "packet_anno.h"
 
+#include "random.h"
+
 static class ClickClassifierClass : public TclClass {
 public:
   ClickClassifierClass() : TclClass("Classifier/Ext/Click") {}
@@ -442,10 +444,18 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
 	  int ifid = va_arg(val, int);
 	  int channelid = va_arg(val, int);
 	  char work[128];
+	  //fprintf(stderr,"SwitchChannel %i %i %i\n", cc->GetNodeAddr(), ifid, channelid);
 	  sprintf(work, "SwitchChannel %i %i %i", cc->GetNodeAddr(), ifid, channelid);
 	  tcl.eval(work);
 	  r = 0;
 	  break;
+      }
+      case SIMCLICK_GET_RANDOM_INT: {
+	  uint32_t *rand_num = va_arg(val, uint32_t*);
+	  uint32_t max_rand = va_arg(val, uint32_t);
+	  *rand_num = Random::integer(max_rand);
+	  r = 0;
+          break;
       }
       case SIMCLICK_GET_NODE_POSITION: {
         int *pos = va_arg(val, int *);
