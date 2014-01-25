@@ -143,7 +143,7 @@ Mac802_11::transmit(Packet *p, double timeout)
 	 *       Interface can distinguish between incoming and
 	 *       outgoing packets.
 	 */
-	downtarget_->recv(p->copy(), this);	
+	downtarget_->recv(p->copy(), this);
 	mhSend_.start(timeout);
 	mhIF_.start(txtime(p));
 }
@@ -312,7 +312,7 @@ Mac802_11::getPerformanceCounter(int *perf_count)
 }
 
 // helper function
-click_wifi_extra* 
+click_wifi_extra*
 getWifiExtra(Packet* p)
 {
   struct hdr_cmn* chdr = HDR_CMN(p);
@@ -328,7 +328,7 @@ getWifiExtra(Packet* p)
   return 0;
 }
 
-click_wifi* 
+click_wifi*
 getWifi(Packet* p)
 {
   struct hdr_cmn* chdr = HDR_CMN(p);
@@ -474,11 +474,11 @@ PHY_MIB::PHY_MIB(Mac802_11 *parent)
 	parent->bind("CWMin3_", &(CWMin[3]));
 	parent->bind("CWMax3_", &(CWMax[3]));
 	parent->bind("NoHWQueues_", &NoHwQueues);
-	
+
 	parent->bind("SlotTime_", &SlotTime);
 	parent->bind("SIFS_", &SIFSTime);
 	parent->bind("BeaconInterval_", &BeaconInterval);
-	
+
 	parent->bind("PreambleLength_", &PreambleLength);
 	parent->bind("PLCPHeaderLength_", &PLCPHeaderLength);
 	parent->bind_bw("PLCPDataRate_", &PLCPDataRate);
@@ -513,7 +513,7 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
 	 * Bind the phy mib objects.  Note that these will be bound
 	 * to Mac/802_11 variables
 	 */
-	
+
 	parent->bind("RTSThreshold_", &RTSThreshold);
 	parent->bind("ShortRetryLimit_", &ShortRetryLimit);
 	parent->bind("LongRetryLimit_", &LongRetryLimit);
@@ -537,24 +537,24 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
 
   //fprintf(stderr,"Short/Long: %d/%d\n",ShortRetryLimit,LongRetryLimit);
 }
-	
+
 
 
 /* ======================================================================
    Mac Class Functions
    ====================================================================== */
-Mac802_11::Mac802_11() : 
-	Mac(), phymib_(this), macmib_(this), mhIF_(this), mhNav_(this), 
-	mhRecv_(this), mhSend_(this), 
+Mac802_11::Mac802_11() :
+	Mac(), phymib_(this), macmib_(this), mhIF_(this), mhNav_(this),
+	mhRecv_(this), mhSend_(this),
 	mhDefer_(this), mhBackoff_(this), mhBeacon_(this), mhProbe_(this)
 {
-	
+
 	nav_ = 0.0;
 	tx_state_ = rx_state_ = MAC_IDLE;
 	tx_active_ = 0;
 	eotPacket_ = NULL;
 	pktRTS_ = 0;
-	pktCTRL_ = 0;	
+	pktCTRL_ = 0;
 	pktBEACON_ = 0;
 	pktASSOCREP_ = 0;
 	pktASSOCREQ_ = 0;
@@ -562,13 +562,13 @@ Mac802_11::Mac802_11() :
 	pktPROBEREQ_ = 0;
 	pktPROBEREP_ = 0;
 	BeaconTxtime_ = 0;
-	infra_mode_ = 0;	
+	infra_mode_ = 0;
 	queue_index_ = 0;
 	cw_ = phymib_.getCWMin();
 	ssrc_ = slrc_ = 0;
 	// Added by Sushmita
         et_ = new EventTrace();
-	
+
 	sta_seqno_ = 1;
 	cache_ = 0;
 	cache_node_count_ = 0;
@@ -586,24 +586,24 @@ Mac802_11::Mac802_11() :
 	Recv_Busy_ = 0;
 	handoff= 0;
 //	ssid_ = "0";
-	
+
 	// chk if basic/data rates are set
 	// otherwise use bandwidth_ as default;
-	
+
 	Tcl& tcl = Tcl::instance();
 	tcl.evalf("Mac/802_11 set basicRate_");
-	if (strcmp(tcl.result(), "0") != 0) 
+	if (strcmp(tcl.result(), "0") != 0)
 		bind_bw("basicRate_", &basicRate_);
 	else
 		basicRate_ = bandwidth_;
 
 	tcl.evalf("Mac/802_11 set dataRate_");
-	if (strcmp(tcl.result(), "0") != 0) 
+	if (strcmp(tcl.result(), "0") != 0)
 		bind_bw("dataRate_", &dataRate_);
 	else
 		dataRate_ = bandwidth_;
 
-		
+
 	bind_bool("bugFix_timer_", &bugFix_timer_);
 
         EOTtarget_ = 0;
@@ -638,10 +638,10 @@ Mac802_11::command(int argc, const char*const* argv)
 			ap_addr = addr();
 			bss_id_ = addr();
 			infra_mode_ = 1;
-			mhBeacon_.start((Random::random() % cw_) * 
+			mhBeacon_.start((Random::random() % cw_) *
 					phymib_.getSlotTime());
 			return TCL_OK;
-		} 
+		}
 		if (strcmp(argv[1], "ScanType") == 0) {
 			if (strcmp(argv[2], "ACTIVE") == 0) {
 				ScanType_ = ACTIVE;
@@ -654,7 +654,7 @@ Mac802_11::command(int argc, const char*const* argv)
 				infra_mode_ = 1;
 			}
 			return TCL_OK;
-		} else if (strcmp(argv[1], "log-target") == 0) { 
+		} else if (strcmp(argv[1], "log-target") == 0) {
 			logtarget_ = (NsObject*) TclObject::lookup(argv[2]);
 			if(logtarget_ == 0)
 				return TCL_ERROR;
@@ -676,7 +676,7 @@ Mac802_11::command(int argc, const char*const* argv)
 }
 
 // Added by Sushmita to support event tracing
-void Mac802_11::trace_event(char *eventtype, Packet *p) 
+void Mac802_11::trace_event(char *eventtype, Packet *p)
 {
         if (et_ == NULL) return;
         char *wrk = et_->buffer();
@@ -685,11 +685,11 @@ void Mac802_11::trace_event(char *eventtype, Packet *p)
 	//       Address::instance().print_nodeaddr(iph->saddr());
         //char *dst_nodeaddr =
         //      Address::instance().print_nodeaddr(iph->daddr());
-	
+
         struct hdr_mac802_11* dh = HDR_MAC802_11(p);
-	
+
         //struct hdr_cmn *ch = HDR_CMN(p);
-	
+
 	if(wrk != 0) {
 		sprintf(wrk, "E -t "TIME_FORMAT" %s %2x ",
 			et_->round(Scheduler::instance().clock()),
@@ -713,7 +713,7 @@ void Mac802_11::trace_event(char *eventtype, Packet *p)
    Debugging Routines
    ====================================================================== */
 void
-Mac802_11::trace_pkt(Packet *p) 
+Mac802_11::trace_pkt(Packet *p)
 {
 	struct hdr_cmn *ch = HDR_CMN(p);
 	struct hdr_mac802_11* dh = HDR_MAC802_11(p);
@@ -757,7 +757,7 @@ inline int
 Mac802_11::hdr_dst(char* hdr, int dst )
 {
 	struct hdr_mac802_11 *dh = (struct hdr_mac802_11*) hdr;
-	
+
        if (dst > -2) {
                if (bss_id() == ((int)IBSS_ID)) {
 			STORE4BYTE(&dst, (dh->dh_ra));
@@ -769,11 +769,11 @@ Mac802_11::hdr_dst(char* hdr, int dst )
 			} else {
 				int dst_broadcast;
 				dst_broadcast = MAC_BROADCAST;
-				
+
 				STORE4BYTE(&dst_broadcast, (dh->dh_ra));
 				STORE4BYTE(&dst, (dh->dh_3a));
 				dh->dh_fc.fc_to_ds      = 1;
-				dh->dh_fc.fc_from_ds    = 1;		
+				dh->dh_fc.fc_from_ds    = 1;
 			}
 		} else {
 			STORE4BYTE(&bss_id_, (dh->dh_ra));
@@ -783,7 +783,7 @@ Mac802_11::hdr_dst(char* hdr, int dst )
        return (u_int32_t)ETHER_ADDR(dh->dh_ra);
 }
 
-inline int 
+inline int
 Mac802_11::hdr_src(char* hdr, int src )
 {
 	struct hdr_mac802_11 *dh = (struct hdr_mac802_11*) hdr;
@@ -792,7 +792,7 @@ Mac802_11::hdr_src(char* hdr, int src )
         return ETHER_ADDR(dh->dh_ta);
 }
 
-inline int 
+inline int
 Mac802_11::hdr_type(char* hdr, u_int16_t type)
 {
 	struct hdr_mac802_11 *dh = (struct hdr_mac802_11*) hdr;
@@ -814,7 +814,7 @@ Mac802_11::is_idle()
 		return 0;
 	if(nav_ > Scheduler::instance().clock())
 		return 0;
-	
+
 	return 1;
 }
 
@@ -915,7 +915,7 @@ Mac802_11::capture(Packet *p)
 	/*
 	 * Update the NAV so that this does not screw
 	 * up carrier sense.
-	 */	
+	 */
 	set_nav(usec(phymib_.getEIFS() + txtime(p)));
 	Packet::free(p);
 }
@@ -966,36 +966,34 @@ Mac802_11::tx_resume()
 	} else if(pktRTS_) {
 		if (mhBackoff_.busy() == 0) {
 			if (bugFix_timer_) {
-				mhBackoff_.start(cw_, is_idle(), 
+				mhBackoff_.start(cw_, is_idle(),
 						 phymib_.getDIFS());
 			}
 			else {
-				rTime = (Random::random() % cw_) * 
+				rTime = (Random::random() % cw_) *
 					phymib_.getSlotTime();
 				mhDefer_.start( phymib_.getDIFS() + rTime);
 			}
 		}
 	} else if(pktTx_) {
+    //fprintf(stderr, "mode: RTS: %d busy?: %d\n", (int) tx_state_ != MAC_RTS ? 0 : 1, mhBackoff_.busy());
 		if (mhBackoff_.busy() == 0) {
 			hdr_cmn *ch = HDR_CMN(pktTx_);
 			struct hdr_mac802_11 *mh = HDR_MAC802_11(pktTx_);
-			
-			if ((u_int32_t) ch->size() < macmib_.getRTSThreshold()
-			    || (u_int32_t) ETHER_ADDR(mh->dh_ra) == MAC_BROADCAST) {
+
+			if ( ( ((u_int32_t) ch->size() < macmib_.getRTSThreshold()) ||
+             ((u_int32_t) ETHER_ADDR(mh->dh_ra) == MAC_BROADCAST) )  &&
+          (tx_state_ != MAC_RTS) ) {
 				if (bugFix_timer_) {
-					mhBackoff_.start(cw_, is_idle(), 
-							 phymib_.getDIFS());
+					mhBackoff_.start(cw_, is_idle(), phymib_.getDIFS());
+				}	else {
+					rTime = (Random::random() % cw_) * phymib_.getSlotTime();
+					mhDefer_.start(phymib_.getDIFS() + rTime);
 				}
-				else {
-					rTime = (Random::random() % cw_)
-						* phymib_.getSlotTime();
-					mhDefer_.start(phymib_.getDIFS() + 
-						       rTime);
-				}
-                        } else {
-				mhDefer_.start(phymib_.getSIFS());
-                        }
-		}
+      } else {
+			  mhDefer_.start(phymib_.getSIFS());
+      }
+	  }
 	} else if(callback_) {
 		Handler *h = callback_;
 		callback_ = 0;
@@ -1036,13 +1034,13 @@ Mac802_11::backoffHandler()
 
 	if ( addr() == bss_id_ ) {
 		if (pktPROBEREP_ && queue_head->frame_priority == 1) {
-			if (check_pktPROBEREP() == 0) 
+			if (check_pktPROBEREP() == 0)
 				return;
 		} else if (pktBEACON_ && queue_head->frame_priority == 2) {
 			if (check_pktBEACON() == 0) {
 				return;
 			}
-		} else if (pktAUTHENTICATE_ && queue_head->frame_priority == 3) { 
+		} else if (pktAUTHENTICATE_ && queue_head->frame_priority == 3) {
 			if (check_pktAUTHENTICATE() == 0)
 				return;
 		} else if(pktASSOCREP_ && queue_head->frame_priority == 4) {
@@ -1060,10 +1058,10 @@ Mac802_11::backoffHandler()
 void
 Mac802_11::BeaconHandler()
 {
-	
+
 	mhBeacon_.start(phymib_.getBeaconInterval());
 	sendBEACON(index_);
-	
+
 }
 
 
@@ -1078,9 +1076,9 @@ Mac802_11::ProbeHandler()
 {
 	if (ScanType_ == ACTIVE) {
 		if ( (bss_id_ == (int)IBSS_ID || handoff == 1) && OnMinChannelTime == 0 && Recv_Busy_ == 0 && OnMaxChannelTime == 0) {
-			
+
 			if (probe_delay == 1) {   // Probe delay over - Active Scan starts here, when the ap_table has not been built yet
-				sendPROBEREQ(MAC_BROADCAST); 
+				sendPROBEREQ(MAC_BROADCAST);
 				probe_delay = 0;
 				return;
 			} else {
@@ -1092,7 +1090,7 @@ Mac802_11::ProbeHandler()
 			// MinChannelTime Over - receiver indicated busy before timer expiry, hence Probe timer should be continued for MaxChannelTime, to receive all probe responses
 			OnMinChannelTime = 0;
 			OnMaxChannelTime = 1;
-			mhProbe_.start(macmib_.getMaxChannelTime()); 
+			mhProbe_.start(macmib_.getMaxChannelTime());
 			return;
 		}
 		else if (OnMinChannelTime == 0 && Recv_Busy_ == 1 && OnMaxChannelTime == 1) {
@@ -1101,20 +1099,20 @@ Mac802_11::ProbeHandler()
 			Recv_Busy_ = 0;
 			if (strongest_ap() > -1)
 				active_scan();
-			else 
+			else
 				printf("No APs in range\n");
 			return;
 		}
 		else if (OnMinChannelTime == 1 && Recv_Busy_ == 0 && OnMaxChannelTime == 0) {
 			//printf("Out of range of any Access Point or channel without APs\n");
 			OnMinChannelTime = 0;
-			//  MinChannelTime Over 
+			//  MinChannelTime Over
 			return;
-		}				
+		}
 	} else {
 		if (ScanType_ == PASSIVE && bss_id_ == (int)IBSS_ID) {
 			 //  ChannelTime Over - Passive Scanning is over, start authentication and association
-			passive_scan();	 // 
+			passive_scan();	 //
 			return;
 		}
 	}
@@ -1128,7 +1126,7 @@ void
 Mac802_11::deferHandler()
 {
 	assert(pktCTRL_ || pktRTS_ || pktTx_);
-	
+
 	if(check_pktCTRL() == 0)
 		return;
 	assert(mhBackoff_.busy() == 0);
@@ -1177,10 +1175,10 @@ void
 Mac802_11::send_timer()
 {
 	switch(tx_state_) {
-	
+
 	case MAC_MGMT:
 		if (pktAUTHENTICATE_) {
-				
+
 			if(addr() == bss_id_ ) {
 				if (tx_mgmt_ == 3) {
 					assert(pktAUTHENTICATE_);
@@ -1198,7 +1196,7 @@ Mac802_11::send_timer()
 				checkAssocAuthStatus();
 				break;
 			}
-		
+
 		}
  		if (pktASSOCREQ_) {
 			assert(pktASSOCREQ_);
@@ -1231,7 +1229,7 @@ Mac802_11::send_timer()
 				assert(pktPROBEREP_);
 				Packet::free(pktPROBEREP_);
 				pktPROBEREP_ = 0;
-			
+
 				shift_priority_queue();
 				assert(mhBackoff_.busy() == 0);
 				mhBackoff_.start(cw_, is_idle());
@@ -1255,7 +1253,7 @@ Mac802_11::send_timer()
 	 */
 	case MAC_CTS:
 		assert(pktCTRL_);
-		Packet::free(pktCTRL_); 
+		Packet::free(pktCTRL_);
 		pktCTRL_ = 0;
 		break;
 	/*
@@ -1269,7 +1267,7 @@ Mac802_11::send_timer()
 	 */
 	case MAC_ACK:
 		assert(pktCTRL_);
-		Packet::free(pktCTRL_); 
+		Packet::free(pktCTRL_);
 		pktCTRL_ = 0;
 		break;
 	case MAC_IDLE:
@@ -1296,7 +1294,7 @@ Mac802_11::check_pktCTRL()
 		return -1;
 
 	mh = HDR_MAC802_11(pktCTRL_);
-							  
+
 	switch(mh->dh_fc.fc_subtype) {
 	/*
 	 *  If the medium is not IDLE, don't send the CTS.
@@ -1313,7 +1311,7 @@ Mac802_11::check_pktCTRL()
 		 *           minus ack tx time -- this timeout is
 		 *           a guess since it is unspecified
 		 *           (note: mh->dh_duration == cf->cf_duration)
-		 */		
+		 */
 		 timeout = txtime(phymib_.getCTSlen(), basicRate_)
                         + DSSS_MaxPropagationDelay                      // XXX
                         + sec(mh->dh_duration)
@@ -1326,7 +1324,7 @@ Mac802_11::check_pktCTRL()
 		 * Acknowledments are sent after an SIFS, without regard to
 		 * the busy/idle state of the medium.
 		 */
-	case MAC_Subtype_ACK:		
+	case MAC_Subtype_ACK:
 		setTxState(MAC_ACK);
 		timeout = txtime(phymib_.getACKlen(), basicRate_);
 		break;
@@ -1369,7 +1367,7 @@ Mac802_11::check_pktRTS()
 		exit(1);
 	}
 	transmit(pktRTS_, timeout);
-  
+
 
 	return 0;
 }
@@ -1380,14 +1378,14 @@ Mac802_11::check_pktTx()
 
 	struct hdr_mac802_11 *mh;
 	double timeout;
-	
+
 	assert(mhBackoff_.busy() == 0);
 
 	if(pktTx_ == 0)
 		return -1;
 
 	mh = HDR_MAC802_11(pktTx_);
-	
+
 	if (addr() != bss_id_ && bss_id_ != (int)IBSS_ID) {
 		if (handoff == 0)
 			STORE4BYTE(&bss_id_, (mh->dh_ra));
@@ -1429,7 +1427,7 @@ Mac802_11::sendRTS(int dst)
 	Packet *p = Packet::alloc();
 	hdr_cmn* ch = HDR_CMN(p);
 	struct rts_frame *rf = (struct rts_frame*)p->access(hdr_mac::offset_);
-	
+
 	assert(pktTx_);
 	assert(pktRTS_ == 0);
 
@@ -1438,16 +1436,16 @@ Mac802_11::sendRTS(int dst)
 	 *  RTSThreshold, then perform the RTS/CTS exchange.
 	 */
 	click_wifi_extra* ceh = getWifiExtra(pktTx_);
-	if ((ceh != 0) && ((u_int32_t) dst != MAC_BROADCAST)) { 	
+	if ((ceh != 0) && ((u_int32_t) dst != MAC_BROADCAST)) {
 		// madwifi case
 		if (!(ceh->flags & WIFI_EXTRA_DO_RTS_CTS)) {
 			Packet::free(p);
 			//p = 0;
 			return;
 		}
-		
+
 		if	( ceh->power > 0){
-			p->txinfo_.setPrLevel(ceh->power);	
+			p->txinfo_.setPrLevel(ceh->power);
 		}
 
 	} else {
@@ -1482,13 +1480,13 @@ Mac802_11::sendRTS(int dst)
 
 	//rf->rf_duration = RTS_DURATION(pktTx_);
 	STORE4BYTE(&dst, (rf->rf_ra));
-	
+
 	/* store rts tx time */
  	ch->txtime() = txtime(ch->size(), basicRate_);
-	
+
 	STORE4BYTE(&index_, (rf->rf_ta));
 
-	/* calculate rts duration field */	
+	/* calculate rts duration field */
 	rf->rf_duration = usec(phymib_.getSIFS()
 			       + txtime(phymib_.getCTSlen(), basicRate_)
 			       + phymib_.getSIFS()
@@ -1529,22 +1527,22 @@ Mac802_11::sendCTS(int dst, double rts_duration)
  	cf->cf_fc.fc_wep	= 0;
  	cf->cf_fc.fc_order	= 0;
 
-		
+
 	//cf->cf_duration = CTS_DURATION(rts_duration);
 	STORE4BYTE(&dst, (cf->cf_ra));
-	
+
 	/* store cts tx time */
 	ch->txtime() = txtime(ch->size(), basicRate_);
-	
+
 	/* calculate cts duration */
 	cf->cf_duration = usec(sec(rts_duration)
                               - phymib_.getSIFS()
                               - txtime(phymib_.getCTSlen(), basicRate_));
 
 
-	
+
 	pktCTRL_ = p;
-	
+
 }
 
 void
@@ -1562,7 +1560,7 @@ Mac802_11::sendACK(int dst)
 	ch->size() = phymib_.getACKlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(af, MAC_HDR_LEN);
 
 	af->af_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -1582,10 +1580,10 @@ Mac802_11::sendACK(int dst)
 
 	/* store ack tx time */
  	ch->txtime() = txtime(ch->size(), basicRate_);
-	
+
 	/* calculate ack duration */
- 	af->af_duration = 0;	
-	
+ 	af->af_duration = 0;
+
 	pktCTRL_ = p;
 }
 
@@ -1614,7 +1612,7 @@ Mac802_11::sendDATA(Packet *p)
 	} else {
 		dh->dh_fc.fc_to_ds	= 0;
 		dh->dh_fc.fc_from_ds	= 0;
-	}	
+	}
 
 	dh->dh_fc.fc_more_frag  = 0;
 	dh->dh_fc.fc_retry      = 0;
@@ -1634,17 +1632,17 @@ Mac802_11::sendDATA(Packet *p)
 
 		// nsmadwifi
 		if ( ceh != 0 ){
-			
+
 			if ( ceh->rate > 0){
-				double rate = ((short int)(ceh->rate))*500000; 
+				double rate = ((short int)(ceh->rate))*500000;
 				ch->txtime() = txtime(ch->size(),rate);
 				p->txinfo_.setRate(rate);
 			}
 			if	( ceh->power > 0){
-				p->txinfo_.setPrLevel(ceh->power);	
+				p->txinfo_.setPrLevel(ceh->power);
 			}
 		}
-		
+
 		dh->dh_duration = usec(txtime(phymib_.getACKlen(), basicRate_)
 				       + phymib_.getSIFS());
 
@@ -1654,7 +1652,7 @@ Mac802_11::sendDATA(Packet *p)
 		/* store data tx time for broadcast packets (see 9.6) */
 		ch->txtime() = txtime(ch->size(), basicRate_);
 		p->txinfo_.setRate(basicRate_);
-		 
+
     // nsmadwifi
     if ( ceh != 0 ) {
       if ( ceh->rate > 0){
@@ -1688,7 +1686,7 @@ Mac802_11::RetransmitRTS()
 
 
 	ssrc_ += 1;			// STA Short Retry Count
-		
+
 	bool failure = false;
 	double count = ssrc_;
 
@@ -1696,25 +1694,25 @@ Mac802_11::RetransmitRTS()
 	if ((ceh != 0) && (ceh->max_tries != 0)){
 		ceh->retries = ssrc_;
 		if (count <= ceh->max_tries){
-		
+
 		} else {
-			failure = true;	
+			failure = true;
 		}
 	} else {
 	if(ssrc_ >= macmib_.getShortRetryLimit()) {
-			failure = true;	
-		}	
+			failure = true;
+		}
 	}
 
 
 	if(failure){
 		discard(pktRTS_, DROP_MAC_RETRY_COUNT_EXCEEDED); pktRTS_ = 0;
-		/* tell the callback the send operation failed 
+		/* tell the callback the send operation failed
 		   before discarding the packet */
 		hdr_cmn *ch = HDR_CMN(pktTx_);
 		if (ch->xmit_failure_) {
                         /*
-                         *  Need to remove the MAC header so that 
+                         *  Need to remove the MAC header so that
                          *  re-cycled packets don't keep getting
                          *  bigger.
                          */
@@ -1730,18 +1728,18 @@ Mac802_11::RetransmitRTS()
 			click_wifi_extra* ceh2 = getWifiExtra(p2);
 			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
 			ceh2->flags |= WIFI_EXTRA_TX;
-			struct hdr_cmn* ch2 = HDR_CMN(p2); 
-			ch2->direction() = hdr_cmn::UP; 
+			struct hdr_cmn* ch2 = HDR_CMN(p2);
+			ch2->direction() = hdr_cmn::UP;
 			ch2->txfeedback() = hdr_cmn::NO; //TODO: why no txfeedback. isn't it the data frame (test with click and rts/cts)
 			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
-			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED);
 			uptarget_->recv(p2, (Handler*) 0);
-		
+
 		} else {
 			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
-			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED);
 		}
-		
+
 		pktRTS_ = 0;
 		pktTx_ = 0;
 		ssrc_ = 0;
@@ -1791,7 +1789,7 @@ Mac802_11::RetransmitDATA()
         tx_control_state_ = TX_CONTROL_IDLE;
       }
     }
-		Packet::free(pktTx_); 
+		Packet::free(pktTx_);
 		pktTx_ = 0;
 
 		/*
@@ -1805,7 +1803,8 @@ Mac802_11::RetransmitDATA()
 	}
 
 	macmib_.ACKFailureCount++;
-
+  //TODO: check RTS/CTS Click Flag
+  // überprüfe welches Retry-Limit bei gesetzten RTS/CTS Flag benutzt wird
 	if((u_int32_t) ch->size() <= macmib_.getRTSThreshold()) {
                 rcount = &ssrc_;
                thresh = macmib_.getShortRetryLimit();
@@ -1827,43 +1826,43 @@ Mac802_11::RetransmitDATA()
 		ScanType_ = ACTIVE;
 		sendPROBEREQ(MAC_BROADCAST);
 		return;
-	}	
+	}
 	bool failure = false;
 	double count = *rcount;
 	click_wifi_extra* ceh = getWifiExtra(pktTx_);
 
 	if ((ceh != 0) && (ceh->max_tries != 0) && (tx_control_state_ != TX_CONTROL_ABORT)){
 		ceh->retries = (*rcount);
-			
+
 		if (count < ceh->max_tries){
-			double rate = ((short int)(ceh->rate))*500000; 
+			double rate = ((short int)(ceh->rate))*500000;
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
 		} else if ( (count-=ceh->max_tries) < ceh->max_tries1 ){
-			double rate = ((short int)(ceh->rate1))*500000; 
+			double rate = ((short int)(ceh->rate1))*500000;
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
 			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
 		} else if ( (count-=ceh->max_tries1) < ceh->max_tries2 ){
-			double rate = ((short int)(ceh->rate2))*500000; 
+			double rate = ((short int)(ceh->rate2))*500000;
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
 			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
 		} else if ( (count-=ceh->max_tries2) < ceh->max_tries3 ){
-			double rate = ((short int)(ceh->rate3))*500000; 
+			double rate = ((short int)(ceh->rate3))*500000;
 			ch->txtime() = txtime(ch->size(),rate);
 			pktTx_->txinfo_.setRate(rate);
 			ceh->flags |= WIFI_EXTRA_TX_USED_ALT_RATE;
 		} else {
-			failure = true;	
+			failure = true;
 		}
-		
+
 	} else {
     if (ceh->max_tries == 0) ceh->retries = (*rcount); //TODO: workaround. fix it (no tries in the case that max_tries == 0 (missing setTXRate in click) and TXfailure
 
 		if ((*rcount >= thresh) || (tx_control_state_ == TX_CONTROL_ABORT)) {
-			failure = true;	
-		}	
+			failure = true;
+		}
 	}
 
 	//if(*rcount >= thresh) {
@@ -1871,7 +1870,7 @@ Mac802_11::RetransmitDATA()
 		/* IEEE Spec section 9.2.3.5 says this should be greater than
 		   or equal */
 		macmib_.FailedCount++;
-		/* tell the callback the send operation failed 
+		/* tell the callback the send operation failed
 		   before discarding the packet */
 		hdr_cmn *ch = HDR_CMN(pktTx_);
 		if (ch->xmit_failure_) {
@@ -1889,19 +1888,19 @@ Mac802_11::RetransmitDATA()
 			ceh2->flags |= WIFI_EXTRA_TX;
 			ceh2->silence = -95;
 			ceh2->rssi = 0;
-			struct hdr_cmn* ch2 = HDR_CMN(p2); 
-			ch2->direction() = hdr_cmn::UP; 
+			struct hdr_cmn* ch2 = HDR_CMN(p2);
+			ch2->direction() = hdr_cmn::UP;
 			ch2->txfeedback() = hdr_cmn::YES;
 			// drop packet first
-			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
-			// send feedback to madwifi 
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED);
+			// send feedback to madwifi
 			uptarget_->recv(p2, (Handler*) 0);
 			tx_control_state_ = TX_CONTROL_IDLE;
 		} else {
-			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED); 
+			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED);
 			//printf("(%d)DATA discarded: count exceeded\n",index_);
 		}
-		
+
 		pktTx_ = 0;
 		*rcount = 0;
 		rst_cw();
@@ -1910,13 +1909,13 @@ Mac802_11::RetransmitDATA()
 		struct hdr_mac802_11 *dh;
 		dh = HDR_MAC802_11(pktTx_);
 		dh->dh_fc.fc_retry = 1;
-		
+
 		// nletor
 		click_wifi* cwh = getWifi(pktTx_);
 		if (cwh != 0){
-			cwh->i_fc[1] |= WIFI_FC1_RETRY;	
+			cwh->i_fc[1] |= WIFI_FC1_RETRY;
 		}
-		//!nletor 
+		//!nletor
 
 		sendRTS(ETHER_ADDR(mh->dh_ra));
 		inc_cw();
@@ -1938,13 +1937,13 @@ double rTime;
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -1955,10 +1954,10 @@ double rTime;
 			 */
 			mhBackoff_.start(cw_, is_idle());
 
-			
+
 		}
-		
-	} 
+
+	}
 
 }
 
@@ -1975,13 +1974,13 @@ double rTime;
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -1991,11 +1990,11 @@ double rTime;
 			 * the backoff timer.
 			 */
 			mhBackoff_.start(cw_, is_idle());
-			
-			
+
+
 		}
-		
-	} 
+
+	}
 
 }
 
@@ -2012,14 +2011,14 @@ double rTime;
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
-					
+
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -2029,10 +2028,10 @@ double rTime;
 			 * the backoff timer.
 			 */
 			mhBackoff_.start(cw_, is_idle());
-			
+
 		}
-		
-	} 
+
+	}
 
 }
 /* ======================================================================
@@ -2065,7 +2064,7 @@ Mac802_11::send(Packet *p, Handler *h)
       dst_mac = &((uint8_t*)&ceh[1])[4];
       ceh->retries = 0; //reset retries
 	}
-	
+
 	if ( memcmp(dst_mac,macbcast,6) != 0 ) {
 	    memcpy(tx_target_mac_, dst_mac, 6);
 	    memcpy(tx_source_mac_, &((uint8_t*)&ceh[1])[10], 6);
@@ -2074,7 +2073,7 @@ Mac802_11::send(Packet *p, Handler *h)
 	tx_control_state_ = TX_CONTROL_BUSY;
 
 //      printf("CW (pre send): %d\n",cw_);
-	
+
 	callback_ = h;
 	
 	p->txinfo_.setChannel(0);
@@ -2091,7 +2090,7 @@ Mac802_11::send(Packet *p, Handler *h)
 	 *  If the medium is IDLE, we must wait for a DIFS
 	 *  Space before transmitting.
 	 */
-		
+
 //      printf("CW: %d\n",cw_);
 	if(mhBackoff_.busy() == 0) {
 		if(is_idle()) {
@@ -2101,16 +2100,16 @@ Mac802_11::send(Packet *p, Handler *h)
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-					 mhBackoff_.start(cw_, is_idle(), 
+					 mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
-			} 
+			}
 		} else {
 			/*
 			 * If the medium is NOT IDLE, then we start
@@ -2119,7 +2118,7 @@ Mac802_11::send(Packet *p, Handler *h)
 			mhBackoff_.start(cw_, is_idle());
 		}
 	}
-	
+
 }
 
 void
@@ -2170,10 +2169,10 @@ Mac802_11::recv(Packet *p, Handler *h)
 		 * txtime seconds.
 		 */
 		if (mhProbe_.busy() && OnMinChannelTime) {
-			Recv_Busy_ = 1;  // Receiver busy indication for Probe Timer 
+			Recv_Busy_ = 1;  // Receiver busy indication for Probe Timer
 		}
-			
-			
+
+
 		mhRecv_.start(txtime(p));
 	} else {
 		/*
@@ -2192,7 +2191,7 @@ Mac802_11::recv(Packet *p, Handler *h)
 void
 Mac802_11::recv_timer()
 {
-	u_int32_t src; 
+	u_int32_t src;
 	hdr_cmn *ch = HDR_CMN(pktRx_);
 	hdr_mac802_11 *mh = HDR_MAC802_11(pktRx_);
 	u_int32_t dst = ETHER_ADDR(mh->dh_ra);
@@ -2202,8 +2201,8 @@ Mac802_11::recv_timer()
 
 	assert(pktRx_);
 	assert(rx_state_ == MAC_RECV || rx_state_ == MAC_COLL);
-	
-	
+
+
         /*
          *  If the interface is in TRANSMIT mode when this packet
          *  "arrives", then I would never have seen it and should
@@ -2218,7 +2217,7 @@ Mac802_11::recv_timer()
 	 * Handle collisions.
 	 */
 	if(rx_state_ == MAC_COLL) {
-		discard(pktRx_, DROP_MAC_COLLISION);		
+		discard(pktRx_, DROP_MAC_COLLISION);
 		set_nav(usec(phymib_.getEIFS()));
 		goto done;
 	}
@@ -2239,6 +2238,9 @@ Mac802_11::recv_timer()
 	 * IEEE 802.11 specs, section 9.2.5.6
 	 *	- update the NAV (Network Allocation Vector)
 	 */
+
+  fprintf(stderr, "dst: %d index: %d dur: %d err: %d rate: %f\n", dst, (u_int32_t) index_, mh->dh_duration, ch->error(), dataRate_);
+
 	if(dst != (u_int32_t)index_) {
 		set_nav(mh->dh_duration);
 	}
@@ -2252,13 +2254,13 @@ Mac802_11::recv_timer()
 		}
 	}
 	/*
-	 * Adaptive Fidelity Algorithm Support - neighborhood infomation 
+	 * Adaptive Fidelity Algorithm Support - neighborhood infomation
 	 * collection
 	 *
 	 * Hacking: Before filter the packet, log the neighbor node
 	 * I can hear the packet, the src is my neighbor
 	 */
-	if (netif_->node()->energy_model() && 
+	if (netif_->node()->energy_model() &&
 	    netif_->node()->energy_model()->adaptivefidelity()) {
 		src = ETHER_ADDR(mh->dh_ta);
 		netif_->node()->energy_model()->add_neighbor(src);
@@ -2276,8 +2278,8 @@ Mac802_11::recv_timer()
 		discard(pktRx_, "---");
 		goto done;
 	}
-	
-	
+
+
 	if ( dst == MAC_BROADCAST && mh->dh_fc.fc_to_ds == 1 && mh->dh_fc.fc_from_ds == 1) {
 		if (addr() != bss_id_) {
  			discard(pktRx_, "---");
@@ -2288,14 +2290,14 @@ Mac802_11::recv_timer()
  			goto done;
 		}
  	}
-	
-	
+
+
 	if ( addr() == bss_id_ && subtype == MAC_Subtype_80211_Beacon) {
 		discard(pktRx_, "---");
  			goto done;
 	}
 
-	
+
 	if ( addr() == bss_id_ && subtype == MAC_Subtype_80211_Beacon) {
 		discard(pktRx_, "---");
  			goto done;
@@ -2481,16 +2483,16 @@ Mac802_11::txtime(Packet *p)
 	return t;
 }
 
- 
+
 /*
- * txtime()	- calculate tx time for packet of size "psz" bytes 
+ * txtime()	- calculate tx time for packet of size "psz" bytes
  *		  at rate "drt" bps
  */
 double
 Mac802_11::txtime(double psz, double drt)
 {
 	double dsz = psz - phymib_.getPLCPhdrLen();
-        int plcp_hdr = phymib_.getPLCPhdrLen() << 3;	
+        int plcp_hdr = phymib_.getPLCPhdrLen() << 3;
 	int datalen = (int)dsz << 3;
 	double t = (((double)plcp_hdr)/phymib_.getPLCPDataRate())
                                        + (((double)datalen)/drt);
@@ -2552,6 +2554,8 @@ Mac802_11::recvCTS(Packet *p)
     return;
   }
 
+  //fprintf(stderr, "mode: RTS: %d\n", (int) tx_state_ != MAC_RTS ? 0 : 1);
+
 	if(tx_state_ != MAC_RTS) {
 		discard(p, DROP_MAC_INVALID_STATE);
 		return;
@@ -2560,13 +2564,13 @@ Mac802_11::recvCTS(Packet *p)
 	assert(pktRTS_);
 	Packet::free(pktRTS_); pktRTS_ = 0;
 
-	assert(pktTx_);	
+	assert(pktTx_);
 	mhSend_.stop();
 
 	/*
 	 * The successful reception of this CTS packet implies
-	 * that our RTS was successful. 
-	 * According to the IEEE spec 9.2.5.3, you must 
+	 * that our RTS was successful.
+	 * According to the IEEE spec 9.2.5.3, you must
 	 * reset the ssrc_, but not the congestion window.
 	 */
 	ssrc_ = 0;
@@ -2596,7 +2600,7 @@ Mac802_11::recvDATA(Packet *p)
 	/*
 	 *  If we sent a CTS, clean up...
 	 */
-	 
+
 	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
 		//if(size >= macmib_.getRTSThreshold()) {
 		if ( 	(!rceh && size >= macmib_.getRTSThreshold()) ||
@@ -2628,13 +2632,13 @@ Mac802_11::recvDATA(Packet *p)
 				tx_resume();
 		}
 	}
-	
+
 	/* ============================================================
 	   Make/update an entry in our sequence number cache.
 	   ============================================================ */
 
-	/* Changed by Debojyoti Dutta. This upper loop of if{}else was 
-	   suggested by Joerg Diederich <dieder@ibr.cs.tu-bs.de>. 
+	/* Changed by Debojyoti Dutta. This upper loop of if{}else was
+	   suggested by Joerg Diederich <dieder@ibr.cs.tu-bs.de>.
 	   Changed on 19th Oct'2000 */
 
 	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_) {
@@ -2661,7 +2665,7 @@ Mac802_11::recvDATA(Packet *p)
 	 *  XXX - we could schedule an event to account
 	 *  for this processing delay.
 	 */
-	
+
 	/* in BSS mode, if a station receives a packet via
 	 * the AP, and higher layers are interested in looking
 	 * at the src address, we might need to put it at
@@ -2677,21 +2681,21 @@ Mac802_11::recvDATA(Packet *p)
 	 * receiver; we finally push the packet towards the
 	 * LL to be added back to my queue - accomplish this
 	 * by reversing the direction!*/
-	
 
 
-		
+
+
 	if ((bss_id() == addr()) && ((u_int32_t)ETHER_ADDR(dh->dh_ra)!= MAC_BROADCAST) && ((u_int32_t)ETHER_ADDR(dh->dh_3a) != ((u_int32_t)addr())) && dh->dh_fc.fc_from_ds == 0) {
 		struct hdr_cmn *ch = HDR_CMN(p);
 		ch->txfeedback() = hdr_cmn::NO;
 
-				
+
 		u_int32_t dst = ETHER_ADDR(dh->dh_3a);
 		u_int32_t src = ETHER_ADDR(dh->dh_ta);
 		/* if it is a broadcast pkt then send a copy up
 		 * my stack also
 		 */
-		
+
 		if (dst == MAC_BROADCAST) {
       if ( ! is_jammer_msg(p) ) uptarget_->recv(p->copy(), (Handler*) 0);
 		}
@@ -2701,21 +2705,21 @@ Mac802_11::recvDATA(Packet *p)
 		if (find_client(dst) == 1 || dst == MAC_BROADCAST) {
 			STORE4BYTE(&src, (dh->dh_3a));
 		} else {
-			STORE4BYTE(&src, (dh->dh_4a));	
+			STORE4BYTE(&src, (dh->dh_4a));
 		}
 
 		ch->addr_type() = NS_AF_ILINK;
 		ch->direction() = hdr_cmn::DOWN;
 		ch->txfeedback() = hdr_cmn::NO;
-		
+
 	}
 
  	if ((bss_id() == addr()) && dh->dh_fc.fc_to_ds == 1 && dh->dh_fc.fc_from_ds == 1) {
  		u_int32_t dst = ETHER_ADDR(dh->dh_3a);
  		u_int32_t src = ETHER_ADDR(dh->dh_4a);
-		/*if (find_client(src)) { 
+		/*if (find_client(src)) {
 			update_client_table(src,0,0);   // If the source is from another BSS and it is found in this AP's table, delete the node from the table
-		}*/	
+		}*/
 
  		ch->next_hop() = dst;
  		STORE4BYTE(&src, (dh->dh_3a));
@@ -2728,7 +2732,7 @@ Mac802_11::recvDATA(Packet *p)
 
   if ( ! is_jammer_msg(p) ) uptarget_->recv(p, (Handler*) 0);
   else discard(p, DROP_MAC_BUSY); //TODO: is that the right way to discard (kill) the jammer msg
-	
+
 }
 
 
@@ -2745,7 +2749,7 @@ Mac802_11::recvACK(Packet *p)
 				Packet::free(pktASSOCREP_);
 				pktASSOCREP_ = 0;
 				update_client_table(associating_node_,1,1);
-			} 
+			}
 			if (pktPROBEREP_ && tx_mgmt_ == 1) {
 				Packet::free(pktPROBEREP_);
 				pktPROBEREP_ = 0;
@@ -2823,8 +2827,8 @@ Mac802_11::recvACK(Packet *p)
 		ceh2->flags |= WIFI_EXTRA_TX;
 		ceh2->silence = -95;
 		ceh2->rssi = p->txinfo_.RxPrMadwifi;
-		struct hdr_cmn* ch2 = HDR_CMN(p2); 
-		ch2->direction() = hdr_cmn::UP; 
+		struct hdr_cmn* ch2 = HDR_CMN(p2);
+		ch2->direction() = hdr_cmn::UP;
 		ch2->txfeedback() = hdr_cmn::YES;
 	}
 
@@ -2882,9 +2886,9 @@ Mac802_11::recvACK(Packet *p)
 	else
 		slrc_ = 0;
 	rst_cw();
-	Packet::free(pktTx_); 
+	Packet::free(pktTx_);
 	pktTx_ = 0;
-	
+
 	/*
 	 * Backoff before sending again.
 // 	 */
@@ -2924,13 +2928,13 @@ void Mac802_11::update_client_table(int num, int auth_status, int assoc_status) 
 		}
 ;
 	}
-	
+
 	if (it == client_list1.end()) {
 		client_list = (struct client_table*)malloc(sizeof(struct client_table));
 		client_list->client_id=num;
 		client_list->auth_status=auth_status;
 		client_list->assoc_status=assoc_status;
-		
+
 		client_list1.push_front(*client_list);
 
 		free(client_list);
@@ -2946,7 +2950,7 @@ void Mac802_11::update_client_table(int num, int auth_status, int assoc_status) 
 //		temp=temp->next;
 //	}
 //	printf("\n");
-	
+
 }
 
 
@@ -2970,20 +2974,20 @@ void
 Mac802_11::sendBEACON(int src)
 {
 	Packet *p = Packet::alloc();
-	
+
 	hdr_cmn* ch = HDR_CMN(p);
 	struct beacon_frame *bf = (struct beacon_frame*)p->access(hdr_mac::offset_);
 	double rTime;
 	pktBEACON_ = 0;
 
 	ch->uid() = 0;
-	
+
 
 	ch->ptype() = PT_MAC;
 	ch->size() = phymib_.getBEACONlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(bf, MAC_HDR_LEN);
 
 /* Note: I had to give a different name for MAC_Subtype_80211_Beacon as MAC_Subtype_80211_Beacon as MAC_Subtype_80211_Beacon is already defined for 802.15.4 with a different value!! (See cmu-trace.cc).
@@ -3005,37 +3009,37 @@ Mac802_11::sendBEACON(int src)
 	STORE4BYTE(&dst, (bf->bf_ra));
 	STORE4BYTE(&src, (bf->bf_ta));
 	STORE4BYTE(&ap_addr, (bf->bf_3a));
-	
+
 	bf->bf_timestamp = Scheduler::instance().clock();
 	bf->bf_bcninterval = phymib_.getBeaconInterval();
 
 	/* store beacon tx time */
 
  	ch->txtime() = txtime(ch->size(), basicRate_);
-	
+
 	/* calculate beacon duration??? */
  	bf->bf_duration = 0;
 
-	p->txinfo_.setChannel(0);
-	
-	pktBEACON_ = p;
-	
+  p->txinfo_.setChannel(0);
+
+  pktBEACON_ = p;
+
 	BeaconTxtime_ = txtime(phymib_.getBEACONlen(), basicRate_);
 
 	add_priority_queue(2);
-	
+
 	if(mhBackoff_.busy() == 0) {
 		if(is_idle()) {
 			if (mhDefer_.busy() == 0) {
-				
+
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -3044,20 +3048,20 @@ Mac802_11::sendBEACON(int src)
 			 * If the medium is NOT IDLE, then we start
 			 * the backoff timer.
 			 */
-			
+
 			mhBackoff_.start(cw_, is_idle());
 
 		}
-	} 		
+	}
 
 }
 
 int
 Mac802_11::check_pktBEACON()
-{	
+{
 	struct beacon_frame *bf = (struct beacon_frame*)pktBEACON_->access(hdr_mac::offset_);
 	bf->bf_timestamp = Scheduler::instance().clock();
-	
+
 	struct hdr_mac802_11 *mh;
 	double timeout;
 
@@ -3085,7 +3089,7 @@ Mac802_11::check_pktBEACON()
 
 	return 0;
 }
- 
+
 
 void
 Mac802_11::recvBEACON(Packet *p)
@@ -3121,21 +3125,21 @@ Mac802_11::passive_scan()
 		if (authenticated == 0 && associated == 0) {
 			ap_temp = strongest_ap();
 			if (!pktAUTHENTICATE_)
-				sendAUTHENTICATE(ap_temp);						
+				sendAUTHENTICATE(ap_temp);
 		}
-			
+
 	}
 }
 void
 Mac802_11::active_scan()
 {
-	
+
 	if ( addr() != ap_addr && ScanType_ == ACTIVE) {
 		if (authenticated == 0 && associated == 0) {
 			ap_temp = strongest_ap();
-			sendAUTHENTICATE(ap_temp);						
+			sendAUTHENTICATE(ap_temp);
 		}
-			
+
 	}
 }
 
@@ -3148,18 +3152,18 @@ Mac802_11::sendASSOCREQ(int dst)
 	Packet *p = Packet::alloc();
 	hdr_cmn* ch = HDR_CMN(p);
 	struct assocreq_frame *acrqf =(struct assocreq_frame*)p->access(hdr_mac::offset_);
-	
+
 	double rTime;
 	pktASSOCREQ_ = 0;
 
 	ch->uid() = 0;
-	
+
 
 	ch->ptype() = PT_MAC;
 	ch->size() = phymib_.getASSOCREQlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(acrqf, MAC_HDR_LEN);
 
 	acrqf->acrqf_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -3173,17 +3177,17 @@ Mac802_11::sendASSOCREQ(int dst)
  	acrqf->acrqf_fc.fc_more_data= 0;
  	acrqf->acrqf_fc.fc_wep	= 0;
  	acrqf->acrqf_fc.fc_order	= 0;
-	
+
 	STORE4BYTE(&dst, (acrqf->acrqf_ra));
 	STORE4BYTE(&index_, (acrqf->acrqf_ta));
 	STORE4BYTE(&dst, (acrqf->acrqf_3a));
 
-	
+
 	ch->txtime() = txtime(ch->size(), basicRate_);
  	acrqf->acrqf_duration = 0;
 
 	p->txinfo_.setChannel(0);
-	
+
 	pktASSOCREQ_ = p;
 
 	if(mhBackoff_.busy() == 0) {
@@ -3194,13 +3198,13 @@ Mac802_11::sendASSOCREQ(int dst)
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -3209,14 +3213,14 @@ Mac802_11::sendASSOCREQ(int dst)
 			 * If the medium is NOT IDLE, then we start
 			 * the backoff timer.
 			 */
-			mhBackoff_.start(cw_, is_idle());	
+			mhBackoff_.start(cw_, is_idle());
 		}
 	}
 }
 
 int
 Mac802_11::check_pktASSOCREQ()
-{	
+{
 	struct hdr_mac802_11 *mh;
 	double timeout;
 
@@ -3245,7 +3249,7 @@ Mac802_11::check_pktASSOCREQ()
 		exit(1);
 	}
 	transmit(pktASSOCREQ_, timeout);
-  
+
 
 	return 0;
 }
@@ -3260,13 +3264,13 @@ Mac802_11::sendASSOCREP(int dst)
 	pktASSOCREP_ = 0;
 
 	ch->uid() = 0;
-	
+
 
 	ch->ptype() = PT_MAC;
 	ch->size() = phymib_.getASSOCREPlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(acrpf, MAC_HDR_LEN);
 
 	acrpf->acrpf_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -3280,7 +3284,7 @@ Mac802_11::sendASSOCREP(int dst)
  	acrpf->acrpf_fc.fc_more_data= 0;
  	acrpf->acrpf_fc.fc_wep	= 0;
  	acrpf->acrpf_fc.fc_order	= 0;
-	
+
 	STORE4BYTE(&dst, (acrpf->acrpf_ra));
 	STORE4BYTE(&index_, (acrpf->acrpf_ta));
 	STORE4BYTE(&index_, (acrpf->acrpf_3a));
@@ -3288,9 +3292,9 @@ Mac802_11::sendASSOCREP(int dst)
 	acrpf->acrpf_statuscode = 0;
 	ch->txtime() = txtime(ch->size(), basicRate_);
  	acrpf->acrpf_duration = 0;
-	
+
 	p->txinfo_.setChannel(0);
-	
+
  	pktASSOCREP_ = p;
 
 
@@ -3304,13 +3308,13 @@ Mac802_11::sendASSOCREP(int dst)
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -3320,11 +3324,11 @@ Mac802_11::sendASSOCREP(int dst)
 			 * the backoff timer.
 			 */
 			mhBackoff_.start(cw_, is_idle());
-			
-		} 
-			
-	
-	} 
+
+		}
+
+
+	}
 }
 
 int
@@ -3344,7 +3348,7 @@ Mac802_11::check_pktASSOCREP()
 			mhBackoff_.start(cw_, is_idle());
 			return 0;
  		}
-		
+
  		setTxState(MAC_MGMT);
 		tx_mgmt_ = 4;
  		timeout = txtime(phymib_.getASSOCREPlen(), basicRate_)
@@ -3352,14 +3356,14 @@ Mac802_11::check_pktASSOCREP()
 			+ phymib_.getSIFS()
 			+ txtime(phymib_.getACKlen(), basicRate_)
 			+ DSSS_MaxPropagationDelay;
-			
+
  		break;
 	default:
  		fprintf(stderr, "check_pktASSOCREP:Invalid MAC Control subtype\n");
  		exit(1);
 	}
  	transmit(pktASSOCREP_, timeout);
-		
+
  	return 0;
 }
 
@@ -3373,10 +3377,10 @@ Mac802_11::recvASSOCREQ(Packet *p)
 		return;
 	}
 	u_int32_t /*bss_id,*/ src;
-	
+
 	//bss_id = ETHER_ADDR(acrqf->acrqf_3a);
  	src = ETHER_ADDR(acrqf->acrqf_ta);
-	
+
 	if (!pktASSOCREP_) {
 		sendASSOCREP(src);
 		associating_node_ = src;
@@ -3385,7 +3389,7 @@ Mac802_11::recvASSOCREQ(Packet *p)
 		return;
 	}
 	tx_resume();
-			
+
 	mac_log(p);
 }
 
@@ -3401,10 +3405,10 @@ Mac802_11::recvASSOCREP(Packet *p)
 
 	u_int32_t src;
 	u_int16_t statuscode;
-	
+
  	src = ETHER_ADDR(acrpf->acrpf_ta);
 	statuscode = acrpf->acrpf_statuscode;
-	
+
 	if (statuscode == 0) {
 		associated = 1;
 		deletelist();
@@ -3412,14 +3416,14 @@ Mac802_11::recvASSOCREP(Packet *p)
 			handoff = 0; //handoff completed
 		}
 		sendACK(src);
-		
+
 	}
 	if(mhSend_.busy() == 0)
 		tx_resume();
-	
+
 	mac_log(p);
 
-	
+
 }
 
 //Authentication functions
@@ -3430,18 +3434,18 @@ Mac802_11::sendAUTHENTICATE(int dst)
 	Packet *p = Packet::alloc();
 	hdr_cmn* ch = HDR_CMN(p);
 	struct auth_frame *authf =(struct auth_frame*)p->access(hdr_mac::offset_);
-	
+
 	double rTime;
 	pktAUTHENTICATE_ = 0;
 
 	ch->uid() = 0;
-	
+
 
 	ch->ptype() = PT_MAC;
 	ch->size() = phymib_.getAUTHENTICATElen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(authf, MAC_HDR_LEN);
 
 	authf->authf_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -3455,38 +3459,38 @@ Mac802_11::sendAUTHENTICATE(int dst)
  	authf->authf_fc.fc_more_data= 0;
  	authf->authf_fc.fc_wep	= 0;
  	authf->authf_fc.fc_order	= 0;
-	
-	
+
+
 	STORE4BYTE(&dst, (authf->authf_ra));
 	STORE4BYTE(&index_, (authf->authf_ta));
 	if (addr() != bss_id_)
 		STORE4BYTE(&dst, (authf->authf_3a));
-	else 
+	else
 		STORE4BYTE(&index_, (authf->authf_3a));
 	authf->authf_algono = 0; //Open system authentication
 
 	if (addr() != bss_id_) {
-		authf->authf_seqno = 1;   
+		authf->authf_seqno = 1;
 	} else {
-		authf->authf_seqno = 2;  
+		authf->authf_seqno = 2;
 		authf->authf_statuscode = 0;
 	}
-	
+
 	ch->txtime() = txtime(ch->size(), basicRate_);
 	if (addr() == bss_id_) {
  		authf->authf_duration = usec(txtime(phymib_.getACKlen(), basicRate_)
 				       + phymib_.getSIFS());
-	} else { 
+	} else {
 		authf->authf_duration = 0;
 	}
 
-	
+
 	pktAUTHENTICATE_ = p;
 
 	if (addr() == bss_id_) {
 		add_priority_queue(3);
 	}
-	
+
 
 	if(mhBackoff_.busy() == 0) {
 		if(is_idle()) {
@@ -3496,13 +3500,13 @@ Mac802_11::sendAUTHENTICATE(int dst)
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -3512,15 +3516,15 @@ Mac802_11::sendAUTHENTICATE(int dst)
 			 * the backoff timer.
 			 */
 			mhBackoff_.start(cw_, is_idle());
-			
+
 		}
-	} 
+	}
 
 }
 
 int
 Mac802_11::check_pktAUTHENTICATE()
-{	
+{
 	struct hdr_mac802_11 *mh;
 	double timeout;
 
@@ -3567,7 +3571,7 @@ void
 Mac802_11::recvAUTHENTICATE(Packet *p)
 {
 	struct auth_frame *authf = (struct auth_frame*)p->access(hdr_mac::offset_);
-	
+
 	if (addr() != bss_id_) {
 			assert(pktAUTHENTICATE_);
 			Packet::free(pktAUTHENTICATE_);
@@ -3579,21 +3583,21 @@ Mac802_11::recvAUTHENTICATE(Packet *p)
 		return;
 		}
 	}
-	
+
 	u_int32_t src;
-		
+
  	src = ETHER_ADDR(authf->authf_ta);
-	
+
 	if (addr() == ap_addr) {
 		if (authf->authf_seqno == 1) {
-			if (!pktAUTHENTICATE_) {// AP is not currently involved in Authentication with any other STA 
+			if (!pktAUTHENTICATE_) {// AP is not currently involved in Authentication with any other STA
 				sendAUTHENTICATE(src);
 				authenticating_node_ = src;
 			} else {
 				discard(p, DROP_MAC_BUSY);
 				return;
 			}
-		} else 
+		} else
 			printf("Out of sequence\n");
 	} else if (authf->authf_seqno == 2 && authf->authf_statuscode == 0) {
 		authenticated = 1;
@@ -3603,35 +3607,35 @@ Mac802_11::recvAUTHENTICATE(Packet *p)
 		bss_id_ = ETHER_ADDR(authf->authf_3a);
 		sendACK(src);
 		mhProbe_.start(phymib_.getSIFS() + txtime(phymib_.getACKlen(), basicRate_) + macmib_.getMaxChannelTime());
-		
+
 	}
-	
+
 	if(mhSend_.busy() == 0)
 		tx_resume();
-		
+
 	mac_log(p);
 
 }
 
-// Active Scanning Functions 
+// Active Scanning Functions
 void
 Mac802_11::sendPROBEREQ(int dst)
 {
 	Packet *p = Packet::alloc();
 	hdr_cmn* ch = HDR_CMN(p);
 	struct probereq_frame *prrqf =(struct probereq_frame*)p->access(hdr_mac::offset_);
-	
+
 	double rTime;
 	pktPROBEREQ_ = 0;
 
 	ch->uid() = 0;
-	
+
 
 	ch->ptype() = PT_MAC;
 	ch->size() = phymib_.getPROBEREQlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(prrqf, MAC_HDR_LEN);
 
 	prrqf->prrqf_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -3645,17 +3649,17 @@ Mac802_11::sendPROBEREQ(int dst)
  	prrqf->prrqf_fc.fc_more_data= 0;
  	prrqf->prrqf_fc.fc_wep	= 0;
  	prrqf->prrqf_fc.fc_order	= 0;
-	
-		
+
+
 	STORE4BYTE(&dst, (prrqf->prrqf_ra));
 	STORE4BYTE(&index_, (prrqf->prrqf_ta));
 	STORE4BYTE(&dst, (prrqf->prrqf_3a));
 
-	
+
 	ch->txtime() = txtime(ch->size(), basicRate_);
  	prrqf->prrqf_duration = 0;
 
-	
+
 	pktPROBEREQ_ = p;
 
 	if(mhBackoff_.busy() == 0) {
@@ -3666,13 +3670,13 @@ Mac802_11::sendPROBEREQ(int dst)
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -3682,7 +3686,7 @@ Mac802_11::sendPROBEREQ(int dst)
 			 * the backoff timer.
 			 */
 			mhBackoff_.start(cw_, is_idle());
-			
+
 		}
 	}
 }
@@ -3690,7 +3694,7 @@ Mac802_11::sendPROBEREQ(int dst)
 
 int
 Mac802_11::check_pktPROBEREQ()
-{	
+{
 	struct hdr_mac802_11 *mh;
 	double timeout;
 
@@ -3727,21 +3731,21 @@ void
 Mac802_11::sendPROBEREP(int dst)
 {
 	Packet *p = Packet::alloc();
-	
+
 	hdr_cmn* ch = HDR_CMN(p);
 	struct proberep_frame *prrpf = (struct proberep_frame*)p->access(hdr_mac::offset_);
-	
+
 	pktPROBEREP_ = 0;
 
 	ch->uid() = 0;
-	
+
 	double rTime;
 
 	ch->ptype() = PT_MAC;
 	ch->size() = phymib_.getPROBEREPlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	
+
 	bzero(prrpf, MAC_HDR_LEN);
 
 	prrpf->prrpf_fc.fc_protocol_version = MAC_ProtocolVersion;
@@ -3755,16 +3759,16 @@ Mac802_11::sendPROBEREP(int dst)
  	prrpf->prrpf_fc.fc_more_data= 0;
  	prrpf->prrpf_fc.fc_wep	= 0;
  	prrpf->prrpf_fc.fc_order	= 0;
-	
+
 	STORE4BYTE(&dst, (prrpf->prrpf_ra));
 	STORE4BYTE(&index_, (prrpf->prrpf_ta));
 	STORE4BYTE(&index_, (prrpf->prrpf_3a));
-	
+
 	prrpf->prrpf_bcninterval = phymib_.getBeaconInterval();
 
 	ch->txtime() = txtime(ch->size(), basicRate_);
  	prrpf->prrpf_duration = 0;
-	
+
 	pktPROBEREP_ = p;
 
 	add_priority_queue(1);
@@ -3777,13 +3781,13 @@ Mac802_11::sendPROBEREP(int dst)
 				 * need to reset the Defer timer.
 				 */
 				if (bugFix_timer_) {
-				 	mhBackoff_.start(cw_, is_idle(), 
+				 	mhBackoff_.start(cw_, is_idle(),
 							  phymib_.getDIFS());
 				}
 				else {
 					rTime = (Random::random() % cw_)
 						* (phymib_.getSlotTime());
-					mhDefer_.start(phymib_.getDIFS() + 
+					mhDefer_.start(phymib_.getDIFS() +
 						       rTime);
 				}
 			}
@@ -3793,19 +3797,19 @@ Mac802_11::sendPROBEREP(int dst)
 			 * the backoff timer.
 			 */
 			mhBackoff_.start(cw_, is_idle());
-			
+
 		}
-		
-	} 
+
+	}
 
 }
 
 int
 Mac802_11::check_pktPROBEREP()
-{	
+{
 	struct proberep_frame *prrpf = (struct proberep_frame*)pktPROBEREP_->access(hdr_mac::offset_);
 	prrpf->prrpf_timestamp = Scheduler::instance().clock();
-	
+
 	struct hdr_mac802_11 *mh;
 	double timeout;
 
@@ -3835,7 +3839,7 @@ Mac802_11::check_pktPROBEREP()
 		exit(1);
 	}
 	transmit(pktPROBEREP_, timeout);
-  
+
 
 	return 0;
 }
@@ -3853,17 +3857,17 @@ Mac802_11::recvPROBEREQ(Packet *p)
 	u_int32_t /*bss_id,*/ src;
 	//bss_id = ETHER_ADDR(prrqf->prrqf_3a);
  	src = ETHER_ADDR(prrqf->prrqf_ta);
-	
+
 	if (!pktPROBEREP_) {
 		sendPROBEREP(src);
 	} else {
 		discard(p, DROP_MAC_BUSY);
 		return;
-	}		 
-		
-	
+	}
+
+
 	tx_resume();
-			
+
 	mac_log(p);
 }
 
@@ -3877,18 +3881,18 @@ Mac802_11::recvPROBEREP(Packet *p)
 	Pr = p->txinfo_.RxPr;
  	src = ETHER_ADDR(prrpf->prrpf_ta);
 	//bss_id = ETHER_ADDR(prrpf->prrpf_ta);
-	
+
 	update_ap_table(src,Pr);
-		
+
 	sendACK(src);
-		
+
 
 	if(mhSend_.busy() == 0)
 		tx_resume();
-	
+
 	mac_log(p);
 
-	
+
 }
 
 void Mac802_11::checkAssocAuthStatus() {
@@ -3896,7 +3900,7 @@ void Mac802_11::checkAssocAuthStatus() {
 		if (authenticated == 0 && associated == 0) {
 
 			sendAUTHENTICATE(strongest_ap());
-		} 
+		}
 		if (authenticated == 1 && associated == 0) {
 			sendASSOCREQ(bss_id_);
 		}
@@ -3906,13 +3910,13 @@ void Mac802_11::checkAssocAuthStatus() {
 /* STA's beacon power table funtions
 */
 void Mac802_11::update_ap_table(int num, double power) {
-	
+
 	std::list<ap_table>::iterator it;
 
 		ap_list = (struct ap_table*)malloc(sizeof(struct ap_table));
 		ap_list->ap_id=num;
 		ap_list->ap_power =power;
-		
+
 		ap_list1.push_front(*ap_list);
 
 		free(ap_list);
@@ -3930,22 +3934,22 @@ int Mac802_11::strongest_ap() {
 	max_power = 0;
 	if (it == ap_list1.end()) {
 		return -1;
-		
+
 	}
 
 	for (it=ap_list1.begin(); it != ap_list1.end(); it++) {
 		if ((*it).ap_power > max_power) {
 			max_power = (*it).ap_power;
-			ap = (*it).ap_id;	
+			ap = (*it).ap_id;
 		}
 
 
 
 	}
-	
+
 	return ap;
 
-	
+
 }
 
 
@@ -3969,7 +3973,7 @@ int Mac802_11::find_ap(int num, double power) {
 
 void Mac802_11::deletelist() {
 	ap_list1.clear();
-	
+
 }
 
 
@@ -4010,10 +4014,10 @@ void Mac802_11::delete_lastnode() {
 	}
 
 	while (temp->next->next != NULL) {
-	
+
 		temp = temp->next;
 	}
-	
+
 	temp->next = NULL;
 	free(temp->next);
 }
@@ -4021,7 +4025,7 @@ void Mac802_11::delete_lastnode() {
 void Mac802_11::shift_priority_queue()
 {
 	struct priority_queue *temp;
-	
+
 	if (queue_head == NULL) {
 		return;
 	}
@@ -4029,7 +4033,7 @@ void Mac802_11::shift_priority_queue()
 		queue_head->frame_priority = 0;
 		goto done;
 	}
-	
+
 	temp =  queue_head;
 	while(temp->next != NULL) {
 		temp->frame_priority = temp->next->frame_priority;
@@ -4038,7 +4042,7 @@ void Mac802_11::shift_priority_queue()
 
 	delete_lastnode();
 
-done:	
+done:
 	temp = queue_head;
-	
+
 }

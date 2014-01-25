@@ -23,7 +23,7 @@
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
@@ -70,7 +70,7 @@ class EventTrace;
 #define MAC_Subtype_ACK		0x0D
 #define MAC_Subtype_Data	0x00
 
-#define MAC_Subtype_80211_Beacon	0x08 
+#define MAC_Subtype_80211_Beacon	0x08
 #define MAC_Subtype_AssocReq	0x00
 #define MAC_Subtype_AssocRep	0x01
 #define MAC_Subtype_Auth	0x0C
@@ -138,7 +138,7 @@ struct ack_frame_no_fcs {
   u_char      af_ra[ETHER_ADDR_LEN];
 };
 
-struct beacon_frame {		
+struct beacon_frame {
 	struct frame_control	bf_fc;
 	u_int16_t		bf_duration;
 	u_char			bf_ra[ETHER_ADDR_LEN];
@@ -287,8 +287,8 @@ public:
 	}
 	inline u_int32_t getPreambleLength() { return(PreambleLength); }
 	inline double getPLCPDataRate() { return(PLCPDataRate); }
-	
-	
+
+
 	inline u_int32_t getPLCPhdrLen() {
 		return((PreambleLength + PLCPHeaderLength) >> 3);
 	}
@@ -297,35 +297,35 @@ public:
 		return(getPLCPhdrLen() + offsetof(struct hdr_mac802_11, dh_body[0])
                        + ETHER_FCS_LEN);
 	}
-	
+
 	inline u_int32_t getRTSlen() {
 		return(getPLCPhdrLen() + sizeof(struct rts_frame));
 	}
-	
+
 	inline u_int32_t getCTSlen() {
 		return(getPLCPhdrLen() + sizeof(struct cts_frame));
 	}
-	
+
 	inline u_int32_t getACKlen() {
 		return(getPLCPhdrLen() + sizeof(struct ack_frame));
 	}
-	inline u_int32_t getBEACONlen() {		
-		return(getPLCPhdrLen() + sizeof(struct beacon_frame)); 
+	inline u_int32_t getBEACONlen() {
+		return(getPLCPhdrLen() + sizeof(struct beacon_frame));
 	}
-	inline u_int32_t getASSOCREQlen() {			
+	inline u_int32_t getASSOCREQlen() {
 		return(getPLCPhdrLen() + sizeof(struct assocreq_frame));
 	}
-	inline u_int32_t getASSOCREPlen() {		
-		return(getPLCPhdrLen() + sizeof(struct assocrep_frame)); 
+	inline u_int32_t getASSOCREPlen() {
+		return(getPLCPhdrLen() + sizeof(struct assocrep_frame));
 	}
-	inline u_int32_t getAUTHENTICATElen() {		
-		return(getPLCPhdrLen() + sizeof(struct auth_frame)); 
+	inline u_int32_t getAUTHENTICATElen() {
+		return(getPLCPhdrLen() + sizeof(struct auth_frame));
 	}
-	inline u_int32_t getPROBEREQlen() {	
-		return(getPLCPhdrLen() + sizeof(struct probereq_frame)); 
+	inline u_int32_t getPROBEREQlen() {
+		return(getPLCPhdrLen() + sizeof(struct probereq_frame));
 	}
-	inline u_int32_t getPROBEREPlen() {		
-		return(getPLCPhdrLen() + sizeof(struct proberep_frame)); 
+	inline u_int32_t getPROBEREPlen() {
+		return(getPLCPhdrLen() + sizeof(struct proberep_frame));
 	}
 
 	void setBackoffQueueInfo(int *boq);
@@ -342,7 +342,7 @@ public:
 	u_int32_t	PreambleLength;
 	u_int32_t	PLCPHeaderLength;
 	double		PLCPDataRate;
-	
+
 	u_int32_t	NoHwQueues;
 };
 
@@ -376,16 +376,16 @@ private:
 	u_int32_t TXFeedback;
 	u_int32_t FilterDub;
   u_int32_t ControlFrames;
-	
+
 public:
-	u_int32_t	FailedCount;	
+	u_int32_t	FailedCount;
 	u_int32_t	RTSFailureCount;
 	u_int32_t	ACKFailureCount;
  public:
        inline u_int32_t getRTSThreshold() { return(RTSThreshold);}
        inline u_int32_t getShortRetryLimit() { return(ShortRetryLimit);}
        inline u_int32_t getLongRetryLimit() { return(LongRetryLimit);}
-       inline u_int32_t getScanType() { return(ScanType);}	
+       inline u_int32_t getScanType() { return(ScanType);}
        inline double getProbeDelay() { return(ProbeDelay);}
        inline double getMaxChannelTime() { return(MaxChannelTime);}
        inline double getMinChannelTime() { return(MinChannelTime);}
@@ -414,7 +414,7 @@ public:
 class Mac802_11 : public Mac {
 	friend class DeferTimer;
 
-	friend class BeaconTimer; 
+	friend class BeaconTimer;
 	friend class ProbeTimer;
 	friend class BackoffTimer;
 	friend class IFTimer;
@@ -427,9 +427,9 @@ public:
 	inline int	hdr_dst(char* hdr, int dst = -2);
 	inline int	hdr_src(char* hdr, int src = -2);
 	inline int	hdr_type(char* hdr, u_int16_t type = 0);
-	
+
 	inline int bss_id() { return bss_id_; }
-	
+
 	// Added by Sushmita to support event tracing
         void trace_event(char *, Packet *);
         EventTrace *et_;
@@ -442,7 +442,7 @@ public:
 protected:
 	void	backoffHandler(void);
 	void	deferHandler(void);
-	void	BeaconHandler(void); 
+	void	BeaconHandler(void);
 	void	ProbeHandler(void);
 	void	navHandler(void);
 	void	recvHandler(void);
@@ -450,17 +450,17 @@ protected:
 	void	txHandler(void);
 
 private:
-	void	update_client_table(int num, int auth_status, int assoc_status);			
-	int	find_client(int num);	
-	void	update_ap_table(int num, double power);	
+	void	update_client_table(int num, int auth_status, int assoc_status);
+	int	find_client(int num);
+	void	update_ap_table(int num, double power);
 	int 	strongest_ap();
 	int	find_ap(int num, double power);
 	void 	deletelist();
-	void	passive_scan();	
+	void	passive_scan();
 	void	active_scan();
 	void	checkAssocAuthStatus();
 	int	command(int argc, const char*const* argv);
-	
+
 
 	void 	add_priority_queue(int num);
 	void 	push_priority(int num);
@@ -470,7 +470,7 @@ private:
 
 
 	/* In support of bug fix described at
-	 * http://www.dei.unipd.it/wdyn/?IDsezione=2435	 
+	 * http://www.dei.unipd.it/wdyn/?IDsezione=2435
 	 */
 	int bugFix_timer_;
 	int infra_mode_;
@@ -497,13 +497,13 @@ private:
 	int		check_pktCTRL();
 	int		check_pktRTS();
 	int		check_pktTx();
-	int		check_pktASSOCREQ();  
+	int		check_pktASSOCREQ();
 	int		check_pktASSOCREP();
 	int		check_pktBEACON();
 	int		check_pktAUTHENTICATE();
-	int		check_pktPROBEREQ();  
+	int		check_pktPROBEREQ();
 	int		check_pktPROBEREP();
-	
+
 	/*
 	 * Packet Transmission Functions.
 	 */
@@ -512,7 +512,7 @@ private:
 	void	sendCTS(int dst, double duration);
 	void	sendACK(int dst);
 	void	sendDATA(Packet *p);
-	void	sendBEACON(int src);		
+	void	sendBEACON(int src);
 	void	sendASSOCREQ(int dst);
 	void	sendASSOCREP(int dst);
 	void	sendPROBEREQ(int dst);
@@ -531,12 +531,12 @@ private:
 	void	recvCTS(Packet *p);
 	void	recvACK(Packet *p);
 	void	recvDATA(Packet *p);
-	void	recvBEACON(Packet *p);		
+	void	recvBEACON(Packet *p);
 	void	recvASSOCREQ(Packet *p);
 	void	recvASSOCREP(Packet *p);
 	void	recvPROBEREQ(Packet *p);
 	void	recvPROBEREP(Packet *p);
-	void	recvAUTHENTICATE(Packet *p);	
+	void	recvAUTHENTICATE(Packet *p);
 
 	void		capture(Packet *p);
 	void		collision(Packet *p);
@@ -552,7 +552,7 @@ private:
 	void		trace_pkt(Packet *p);
 	void		dump(char* fname);
 
-	inline int initialized() {	
+	inline int initialized() {
 		return (cache_ && logtarget_
                         && Mac::initialized());
 	}
@@ -587,6 +587,7 @@ private:
 	inline void set_nav(u_int16_t us) {
 		double now = Scheduler::instance().clock();
 		double t = us * 1e-6;
+		fprintf(stderr, "now: %f us: %d t+now: %f nav: %f\n", now, us, t+now, nav_);
 		if((now + t) > nav_) {
 			nav_ = now + t;
 			if(mhNav_.busy())
@@ -614,7 +615,7 @@ protected:
 private:
 	double		basicRate_;
  	double		dataRate_;
-	struct client_table	*client_list;	
+	struct client_table	*client_list;
 	struct ap_table	*ap_list;
 	struct priority_queue *queue_head;
 
@@ -628,8 +629,8 @@ private:
 
 	DeferTimer	mhDefer_;	// defer timer
 	BackoffTimer	mhBackoff_;	// backoff timer
-	BeaconTimer	mhBeacon_;	// Beacon Timer 
-	ProbeTimer	mhProbe_;	//Probe timer, 
+	BeaconTimer	mhBeacon_;	// Beacon Timer
+	ProbeTimer	mhProbe_;	//Probe timer,
 
 	/* ============================================================
 	   Internal MAC State
