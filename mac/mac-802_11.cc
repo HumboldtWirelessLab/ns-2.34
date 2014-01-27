@@ -2239,7 +2239,7 @@ Mac802_11::recv_timer()
 	 *	- update the NAV (Network Allocation Vector)
 	 */
 
-  fprintf(stderr, "dst: %d index: %d dur: %d err: %d rate: %f\n", dst, (u_int32_t) index_, mh->dh_duration, ch->error(), dataRate_);
+  //fprintf(stderr, "dst: %d index: %d dur: %d err: %d rate: %f\n", dst, (u_int32_t) index_, mh->dh_duration, ch->error(), dataRate_);
 
 	if(dst != (u_int32_t)index_) {
 		set_nav(mh->dh_duration);
