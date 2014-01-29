@@ -587,7 +587,7 @@ private:
 	inline void set_nav(u_int16_t us) {
 		double now = Scheduler::instance().clock();
 		double t = us * 1e-6;
-		fprintf(stderr, "now: %f us: %d t+now: %f nav: %f\n", now, us, t+now, nav_);
+		//fprintf(stderr, "now: %f us: %d t+now: %f nav: %f\n", now, us, t+now, nav_);
 		if((now + t) > nav_) {
 			nav_ = now + t;
 			if(mhNav_.busy())
