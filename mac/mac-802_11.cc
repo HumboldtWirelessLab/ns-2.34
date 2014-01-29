@@ -1667,6 +1667,9 @@ Mac802_11::sendDATA(Packet *p)
     dh->dh_duration = 0;
 
 	}
+
+	p->txinfo_.setChannel(0);
+
 	pktTx_ = p;
 }
 
@@ -2072,6 +2075,9 @@ Mac802_11::send(Packet *p, Handler *h)
 //      printf("CW (pre send): %d\n",cw_);
 
 	callback_ = h;
+	
+	p->txinfo_.setChannel(0);
+	
 	sendDATA(p);
 	sendRTS(ETHER_ADDR(dh->dh_ra));
 
@@ -3014,7 +3020,9 @@ Mac802_11::sendBEACON(int src)
 	/* calculate beacon duration??? */
  	bf->bf_duration = 0;
 
-	pktBEACON_ = p;
+  p->txinfo_.setChannel(0);
+
+  pktBEACON_ = p;
 
 	BeaconTxtime_ = txtime(phymib_.getBEACONlen(), basicRate_);
 
@@ -3178,6 +3186,7 @@ Mac802_11::sendASSOCREQ(int dst)
 	ch->txtime() = txtime(ch->size(), basicRate_);
  	acrqf->acrqf_duration = 0;
 
+	p->txinfo_.setChannel(0);
 
 	pktASSOCREQ_ = p;
 
@@ -3284,6 +3293,7 @@ Mac802_11::sendASSOCREP(int dst)
 	ch->txtime() = txtime(ch->size(), basicRate_);
  	acrpf->acrpf_duration = 0;
 
+	p->txinfo_.setChannel(0);
 
  	pktASSOCREP_ = p;
 
