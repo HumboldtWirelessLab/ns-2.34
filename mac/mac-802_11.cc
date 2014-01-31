@@ -1730,8 +1730,11 @@ Mac802_11::RetransmitRTS()
 			ceh2->flags |= WIFI_EXTRA_TX;
 			struct hdr_cmn* ch2 = HDR_CMN(p2);
 			ch2->direction() = hdr_cmn::UP;
-			ch2->txfeedback() = hdr_cmn::NO; //TODO: why no txfeedback. isn't it the data frame (test with click and rts/cts)
+			ch2->txfeedback() = hdr_cmn::YES; //TODO: why no txfeedback. isn't it the data frame (test with click and rts/cts)
 			//printf("(%d)....discarding RTS:%x\n",index_,pktRTS_);
+
+      ch->direction() = hdr_cmn::UP;
+      ch->txfeedback() = hdr_cmn::YES;
 			discard(pktTx_, DROP_MAC_RETRY_COUNT_EXCEEDED);
 			uptarget_->recv(p2, (Handler*) 0);
 
@@ -2075,9 +2078,9 @@ Mac802_11::send(Packet *p, Handler *h)
 //      printf("CW (pre send): %d\n",cw_);
 
 	callback_ = h;
-	
+
 	p->txinfo_.setChannel(0);
-	
+
 	sendDATA(p);
 	sendRTS(ETHER_ADDR(dh->dh_ra));
 
