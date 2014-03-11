@@ -365,6 +365,7 @@ public:
 
 private:
 	u_int32_t	RTSThreshold;
+  u_int32_t RTSThresholdDefault;
 	u_int32_t	ShortRetryLimit;
 	u_int32_t	LongRetryLimit;
 	u_int32_t	ScanType;
@@ -383,6 +384,9 @@ public:
 	u_int32_t	ACKFailureCount;
  public:
        inline u_int32_t getRTSThreshold() { return(RTSThreshold);}
+       inline void setRTSThreshold(u_int32_t newRTSTreshold) { RTSThreshold = newRTSTreshold;}
+       inline void setRTSThresholdDefault(u_int32_t newRTSTresholdDefault) { RTSThresholdDefault = newRTSTresholdDefault;}
+       inline void resetRTSThreshold() { RTSThreshold = RTSThresholdDefault;}
        inline u_int32_t getShortRetryLimit() { return(ShortRetryLimit);}
        inline u_int32_t getLongRetryLimit() { return(LongRetryLimit);}
        inline u_int32_t getScanType() { return(ScanType);}
@@ -657,6 +661,7 @@ private:
 	u_int32_t	ssrc_;		// STA Short Retry Count
 	u_int32_t	slrc_;		// STA Long Retry Count
   u_int32_t tx_count;    // STA Long Retry Count
+  u_int32_t rts_tx_count;
 
 	int		min_frame_len_;
 
