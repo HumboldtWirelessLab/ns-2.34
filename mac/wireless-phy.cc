@@ -407,7 +407,7 @@ WirelessPhy::sendUp(Packet *p)
     } else {
       p->txinfo_.RxPrMadwifi = 60;
     }
-    fprintf(stderr,"RX-Power: Pr: %f Thr: %f RSSI: %d\n",LPr, LRXThr,p->txinfo_.RxPrMadwifi);
+    //fprintf(stderr,"RX-Power: Pr: %f Thr: %f RSSI: %d\n",LPr, LRXThr,p->txinfo_.RxPrMadwifi);
 
     if(ceh != 0){
       ceh->rssi = p->txinfo_.RxPrMadwifi;
@@ -426,14 +426,14 @@ WirelessPhy::sendUp(Packet *p)
     int i;
 		for (i = 0; i < RateCount_; i++){
 			if (ratelist[i] == p->txinfo_.getRate()) {
-        fprintf(stderr,"Used: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
+        //fprintf(stderr,"Used: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
 				RXThr = rxlist[i];
         break;
-			}	else {
+			}	/*else {
         fprintf(stderr,"Failed: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
-      }
+      }*/
 		}
-		fprintf(stderr,"Rate is %e Pr is %e RXThr is %e RXsucc: %d\n",p->txinfo_.getRate(),Pr,RXThr, (int)((Pr>=RXThr)?1:0));
+		//fprintf(stderr,"Rate is %e Pr is %e RXThr is %e RXsucc: %d\n",p->txinfo_.getRate(),Pr,RXThr, (int)((Pr>=RXThr)?1:0));
 		
     if ( i == RateCount_ ) {
       fprintf(stderr,"Rate not found set thr higher than pr, so its drop\n");
