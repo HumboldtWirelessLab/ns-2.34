@@ -129,6 +129,9 @@ protected:
 	double RXThresh_;	// receive power threshold (W)
 	double CSThresh_;	// carrier sense threshold (W)
 	double CPThresh_;	// capture threshold (db)
+	double Noise_;
+  double Noise_dbm_;
+  double RXThresh_dbm_;
   	int RateCount_;		// number of rates
   
 	Antenna *ant_;
@@ -157,6 +160,7 @@ private:
 
 	RateList ratelist;
 	RXList rxlist;
+  RXList rxlist_db;
 };
 
 #endif /* !ns_WirelessPhy_h */

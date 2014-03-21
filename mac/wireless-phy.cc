@@ -62,6 +62,8 @@
 #include "rawpacket.h"
 #include "packet_anno.h"
 
+//#define BRN_MADWIFI_DEBUG
+
 void Sleep_Timer::expire(Event *) {
 	a_->UpdateSleepEnergy();
 }
@@ -99,10 +101,35 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 	bind("CPThresh_", &CPThresh_);
 	bind("CSThresh_", &CSThresh_);
 	bind("RXThresh_", &RXThresh_);
+
+  Noise_ = 1.0286620123018115e-10;
+  bind("Noise_", &Noise_);
+
+  Noise_dbm_ = Noise_;
+
+  if ( CPThresh_ < 0 ) CPThresh_ = pow10(CPThresh_/10);
+  if ( CSThresh_ < 0 ) CSThresh_ = pow10(CSThresh_/10);
+  if ( RXThresh_ < 0 ) {
+    RXThresh_dbm_ = RXThresh_;
+    RXThresh_ = pow10(RXThresh_/10);
+  } else {
+    RXThresh_dbm_ = (10 * log10(RXThresh_));
+  }
+
+  if ( Noise_ < 0 ) Noise_ = pow10(Noise_/10);
+
+#ifdef BRN_MADWIFI_DEBUG
+  fprintf(stderr,"CP: %e CS: %e RX: %e Noise: %e\n",CPThresh_,CSThresh_,RXThresh_,Noise_);
+#endif
 	//bind("bandwidth_", &bandwidth_);
 	bind("Pt_", &Pt_);
 	bind("freq_", &freq_);
 	bind("L_", &L_);
+
+#ifdef BRN_MADWIFI_DEBUG
+  fprintf(stderr,"rx: %e %e %f\n", RXThresh_, CSThresh_,CPThresh_ );
+#endif
+
 	// nletor -- multirate madwifi configuration
 	RateCount_ = 0;
 	bind("RateCount_",&RateCount_);
@@ -119,12 +146,23 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 				double thr;
 				sprintf(buffer,"RXThresh%d",i);
 				bind(buffer,&thr);
-				rxlist.push_back(thr);
+        if ( thr > 0.99 ) { //looks like db
+          rxlist_db.push_back(thr);
+          rxlist.push_back(pow10((Noise_dbm_ + thr)/10));
+        } else {
+          rxlist_db.push_back((10 * log10(thr)) - Noise_dbm_);
+          rxlist.push_back(thr);
+        }
 		}
 
 	}
 	//!nletor
 
+#ifdef BRN_MADWIFI_DEBUG
+	for (int i = 0; i < RateCount_; i++) {
+    fprintf(stderr,"Rate: %f Thr: %e Thr_dbm: %f\n",ratelist[i],rxlist[i],rxlist_db[i]);
+  }
+#endif
 	lambda_ = SPEED_OF_LIGHT / freq_;
 
 	node_ = 0;
@@ -399,19 +437,30 @@ WirelessPhy::sendUp(Packet *p)
 		Pr = propagation_->Pr(&p->txinfo_, &s, this);
 
     //analog to atheros formule -95dBm is lowest sens.
+#define BRN_MADWIFI
+#ifndef BRN_MADWIFI
     double LPr = (10 * log(Pr * 1000));
     double LRXThr = (10 * log(RXThresh_ * 1000));
+#else
+    double LPr = (10 * log10(Pr));
+    double LRXThr = (10 * log10(RXThresh_));
+#endif
     if (LPr < numeric_limits<double>::infinity()){
+#ifndef BRN_MADWIFI
       p->txinfo_.RxPrMadwifi = (short int)( (LPr - LRXThr ) * (60.0/100.0) );
+#else
+      p->txinfo_.RxPrMadwifi = (short int)(LPr - LRXThr );
+#endif
       p->txinfo_.RxPrMadwifi = (p->txinfo_.RxPrMadwifi > 60) ? 60 : p->txinfo_.RxPrMadwifi;
     } else {
       p->txinfo_.RxPrMadwifi = 60;
     }
-    //fprintf(stderr,"RX-Power: Pr: %f Thr: %f RSSI: %d\n",LPr, LRXThr,p->txinfo_.RxPrMadwifi);
-
+#ifdef BRN_MADWIFI_DEBUG
+    fprintf(stderr,"RX-Power: Pr: %f Thr: %f RSSI: %d (%e)\n",LPr, LRXThr,p->txinfo_.RxPrMadwifi,RXThresh_ );
+#endif
     if(ceh != 0){
       ceh->rssi = p->txinfo_.RxPrMadwifi;
-      ceh->silence = -95;
+      ceh->silence = (short int)RXThresh_dbm_;
     }
 
 		if (Pr < CSThresh_) {
@@ -424,7 +473,7 @@ WirelessPhy::sendUp(Packet *p)
 		
 		// compare to correct rate,moet nog aan gesleuteld worden
     int i;
-		for (i = 0; i < RateCount_; i++){
+		for (i = (RateCount_-1); i >= 0; i--){
 			if (ratelist[i] == p->txinfo_.getRate()) {
         //fprintf(stderr,"Used: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
 				RXThr = rxlist[i];
@@ -433,9 +482,11 @@ WirelessPhy::sendUp(Packet *p)
         fprintf(stderr,"Failed: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
       }*/
 		}
-		//fprintf(stderr,"Rate is %e Pr is %e RXThr is %e RXsucc: %d\n",p->txinfo_.getRate(),Pr,RXThr, (int)((Pr>=RXThr)?1:0));
+#ifdef BRN_MADWIFI_DEBUG
+		fprintf(stderr,"Rate is %e Pr is %e RXThr is %e RXsucc: %d\n",p->txinfo_.getRate(),Pr,RXThr, (int)((Pr>=RXThr)?1:0));
+#endif
 		
-    if ( i == RateCount_ ) {
+    if ((RateCount_ > 0 ) && (i < 0)) {
       fprintf(stderr,"Rate not found set thr higher than pr, so its drop\n");
       RXThr = Pr + 1.0;
     }

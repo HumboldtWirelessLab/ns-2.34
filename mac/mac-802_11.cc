@@ -423,7 +423,7 @@ Mac802_11::transmit_abort(Packet *p, double timeout)
     if (ceh_feedback != 0) {
 
       ceh_feedback->retries = tx_count;
-      ceh_feedback->pad = (rts_tx_count << 4) + tx_count;
+      ceh_feedback->virt_col = (rts_tx_count << 4) + tx_count;
       ceh_feedback->flags |= WIFI_EXTRA_TX;
       ceh_feedback->flags |= WIFI_EXTRA_TX_FAIL;
       ceh_feedback->flags |= Click::WIFI_EXTRA_TX_ABORT;
@@ -1725,8 +1725,8 @@ Mac802_11::RetransmitRTS()
 		if (ceh != 0){
       //TODO: check: set retries to shortRetries?
 			ceh->retries--;
-      ceh->pad = (rts_tx_count << 4) + tx_count;;
-      fprintf(stderr, "Sum long: %d short: %d retries: %d\n",slrc_, ssrc_, ceh->retries);
+      ceh->virt_col = (rts_tx_count << 4) + tx_count;;
+      //fprintf(stderr, "Sum long: %d short: %d retries: %d (%d/%d/%d)\n",slrc_, ssrc_, ceh->retries, rts_tx_count, tx_count, ceh->virt_col);
 			Packet* p2 = pktTx_->copy();
 			click_wifi_extra* ceh2 = getWifiExtra(p2);
 			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
@@ -1790,7 +1790,8 @@ Mac802_11::RetransmitDATA()
         ceh_feedback->flags |= Click::WIFI_EXTRA_EXT_RETRY_INFO;
         ceh_feedback->silence = -95;
         ceh_feedback->rssi = 0;
-        ceh_feedback->pad = (rts_tx_count << 4) + tx_count;
+        ceh_feedback->virt_col = (rts_tx_count << 4) + tx_count;
+        //fprintf(stderr, "Sum long: %d short: %d retries: %d (%d/%d/%d)\n",slrc_, ssrc_, ceh->retries, rts_tx_count, tx_count, ceh->virt_col);
         struct hdr_cmn* ch_feedback = HDR_CMN(p_feedback);
         ch_feedback->direction() = hdr_cmn::UP;
         ch_feedback->txfeedback() = hdr_cmn::YES;
@@ -1850,7 +1851,7 @@ Mac802_11::RetransmitDATA()
 	if ((ceh != 0) && (ceh->max_tries != 0) && (tx_control_state_ != TX_CONTROL_ABORT)){
 		ceh->retries = (*rcount);
 
-    fprintf(stderr,"Rateindex: %d\n",count);
+    //fprintf(stderr,"Rateindex: %d\n",count);
 		if (count < ceh->max_tries){
 			double rate = ((short int)(ceh->rate))*500000;
 			ch->txtime() = txtime(ch->size(),rate);
@@ -1877,7 +1878,7 @@ Mac802_11::RetransmitDATA()
 	} else {
     if (ceh->max_tries == 0) {
       ceh->retries = (*rcount); //TODO: workaround. fix it (no tries in the case that max_tries == 0 (missing setTXRate in click) and TXfailure
-      ceh->pad = (rts_tx_count << 4) + tx_count;
+      ceh->virt_col = (rts_tx_count << 4) + tx_count;
     }
 
 		if ((*rcount >= thresh) || (tx_control_state_ == TX_CONTROL_ABORT)) {
@@ -1902,8 +1903,8 @@ Mac802_11::RetransmitDATA()
 
 		if (ceh != 0){
 			ceh->retries--;
-      ceh->pad = (rts_tx_count << 4) + tx_count;;
-      fprintf(stderr, "Sum long: %d short: %d retries: %d (%d)\n",slrc_, ssrc_, ceh->retries, slrc_+ssrc_ );
+      ceh->virt_col = (rts_tx_count << 4) + tx_count;;
+      //fprintf(stderr, "Sum long: %d short: %d retries: %d (%d)\n",slrc_, ssrc_, ceh->retries, slrc_+ssrc_ );
 			Packet* p2 = pktTx_->copy();
 			click_wifi_extra* ceh2 = getWifiExtra(p2);
 			ceh2->flags |= WIFI_EXTRA_TX_FAIL;
@@ -2864,7 +2865,9 @@ Mac802_11::recvACK(Packet *p)
     ceh2->flags |= Click::WIFI_EXTRA_EXT_RETRY_INFO;
 		ceh2->silence = -95;
 		ceh2->rssi = p->txinfo_.RxPrMadwifi;
-    ceh2->pad = (rts_tx_count << 4) + tx_count;
+    ceh2->virt_col = (rts_tx_count << 4) + tx_count;
+    //fprintf(stderr, "Sum long: %d short: %d retries: %d (%d/%d/%d)\n",slrc_, ssrc_, ceh2->retries, rts_tx_count, tx_count, ceh2->virt_col);
+
 		struct hdr_cmn* ch2 = HDR_CMN(p2);
 		ch2->direction() = hdr_cmn::UP;
 		ch2->txfeedback() = hdr_cmn::YES;
