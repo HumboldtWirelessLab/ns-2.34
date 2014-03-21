@@ -123,11 +123,12 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 #endif
 	//bind("bandwidth_", &bandwidth_);
 	bind("Pt_", &Pt_);
+  if ( Pt_ > 1 ) Pt_ = pow10(Pt_/10) / 1000; //dbm to Watt ( /1000)
 	bind("freq_", &freq_);
 	bind("L_", &L_);
 
 #ifdef BRN_MADWIFI_DEBUG
-  fprintf(stderr,"rx: %e %e %f\n", RXThresh_, CSThresh_,CPThresh_ );
+  fprintf(stderr,"rx: %e %e %f %e\n", RXThresh_, CSThresh_, CPThresh_, Pt_ );
 #endif
 
 	// nletor -- multirate madwifi configuration
