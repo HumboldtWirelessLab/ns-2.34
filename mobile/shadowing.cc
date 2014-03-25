@@ -121,7 +121,12 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 	double Gr = r->getAntenna()->getRxGain(dX, dY, dZ, lambda);
 
 	// calculate receiving power at reference distance
-	double Pr0 = Friis(t->getTxPr(), Gt, Gr, lambda, L, dist0_);
+  double txpr = t->getTxPr();
+  if ( t->getPrLevel() > 0 ) {
+    txpr = pow10((double)t->getPrLevel()/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
+    //fprintf(stderr,"Power(db): %d Power: %e old: %e\n",t->getPrLevel(),txpr, t->getTxPr());
+  }
+	double Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
 
 	// calculate average power loss predicted by path loss model
 	double avg_db;

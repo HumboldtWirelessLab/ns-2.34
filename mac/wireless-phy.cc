@@ -388,6 +388,8 @@ WirelessPhy::sendUp(Packet *p)
 	 */
 	assert(initialized());
 
+  double CPThr = CPThresh_;
+
 	//unsigned char* pdat = p->accessdata();
 	
 	click_wifi_extra *ceh = 0;
@@ -478,6 +480,7 @@ WirelessPhy::sendUp(Packet *p)
 			if (ratelist[i] == p->txinfo_.getRate()) {
         //fprintf(stderr,"Used: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
 				RXThr = rxlist[i];
+        CPThr = rxlist_db[i];
         break;
 			}	/*else {
         fprintf(stderr,"Failed: Rate: %f List: %f threshold: %e\n",p->txinfo_.getRate(),ratelist[i],rxlist[i]);
@@ -548,7 +551,8 @@ DONE:
 	   capture.  This will be moved into the net-if family of 
 	   objects in the future. */
 	p->txinfo_.RxPr = Pr;
-	p->txinfo_.CPThresh = CPThresh_;
+	//p->txinfo_.CPThresh = CPThresh_;
+  p->txinfo_.CPThresh = CPThr;
 
 	/*
 	 * Decrease energy if packet successfully received

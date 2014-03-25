@@ -154,15 +154,21 @@ TwoRayGround::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
   //         t->getTxPr(), Gt, Gr, lambda, L);
 #endif
 
+  double txpr = t->getTxPr();
+  if ( t->getPrLevel() > 0 ) {
+    txpr = pow10(((double)t->getPrLevel())/(10.0*2.0)) / 1000.0; // /2 since we can use 0.5 dbm steps for power ctrl
+    //fprintf(stderr,"Power(db): %d Power: %e old: %e\n",t->getPrLevel(),txpr, t->getTxPr());
+  }
+
   if(d <= crossover_dist) {
-    Pr = Friis(t->getTxPr(), Gt, Gr, lambda, L, d);
+    Pr = Friis(txpr, Gt, Gr, lambda, L, d);
 #if DEBUG > 3
     printf("Friis %e\n",Pr);
 #endif
     return Pr;
   }
   else {
-    Pr = TwoRay(t->getTxPr(), Gt, Gr, ht, hr, L, d);
+    Pr = TwoRay(txpr, Gt, Gr, ht, hr, L, d);
 #if DEBUG > 3
     printf("TwoRay %e\n",Pr);
 #endif    

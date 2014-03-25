@@ -377,6 +377,7 @@ private:
 	u_int32_t TXFeedback;
 	u_int32_t FilterDub;
   u_int32_t ControlFrames;
+  u_int32_t MadwifiTPC;
 
 public:
 	u_int32_t	FailedCount;
@@ -398,6 +399,7 @@ public:
        inline u_int32_t getFilterDub() { return(FilterDub);}
        inline u_int32_t getControlFrames() { return(ControlFrames);}
        inline u_int32_t getTXFeedback() { return(TXFeedback);}
+       inline u_int32_t getMadwifiTPC() { return(MadwifiTPC);}
 };
 
 
@@ -610,6 +612,7 @@ protected:
         * purpose
         */
        int     bss_id_;
+    int MadwifiTPC_;
        enum    {IBSS_ID=MAC_BROADCAST};
        enum    {
 		PASSIVE = 0,

@@ -535,6 +535,10 @@ MAC_MIB::MAC_MIB(Mac802_11 *parent)
   parent->bind("ControlFrames_", &ControlFrames);
   if ( ControlFrames > 1 ) ControlFrames = 1;
 
+  MadwifiTPC = 0;
+  parent->bind("MadwifiTPC_", &MadwifiTPC);
+  if ( MadwifiTPC > 1 ) MadwifiTPC = 1;
+
   setRTSThresholdDefault(getRTSThreshold());
 }
 
@@ -1446,6 +1450,7 @@ Mac802_11::sendRTS(int dst)
 
 		if	( ceh->power > 0){
 			p->txinfo_.setPrLevel(ceh->power);
+      if ( macmib_.getMadwifiTPC() == 0 ) p->txinfo_.setPrLevel(2 * ceh->power);
 		}
 
 	} else {
@@ -1642,7 +1647,9 @@ Mac802_11::sendDATA(Packet *p)
 				p->txinfo_.setRate(rate);
 			}
 			if	( ceh->power > 0){
+        //fprintf(stderr, "Uni Power: %d\n",ceh->power);
 				p->txinfo_.setPrLevel(ceh->power);
+        if ( macmib_.getMadwifiTPC() == 0 ) p->txinfo_.setPrLevel(2 * ceh->power);
 			}
 		}
 
@@ -1665,6 +1672,8 @@ Mac802_11::sendDATA(Packet *p)
       }
       if  ( ceh->power > 0){
         p->txinfo_.setPrLevel(ceh->power);
+        if ( macmib_.getMadwifiTPC() == 0 ) p->txinfo_.setPrLevel(2 * ceh->power);
+        //fprintf(stderr, "bcast Power: %d\n",ceh->power);
       }
     }
     dh->dh_duration = 0;
