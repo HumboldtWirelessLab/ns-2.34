@@ -83,6 +83,9 @@ Shadowing::Shadowing()
 	
 	ranVar = new RNG;
 	ranVar->set_seed(RNG::PREDEF_SEED_SOURCE, seed_);
+
+  for ( int i = 0; i < 200; i++ )
+    madwifi_db_to_mw[i] = pow10(((double)i)/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
 }
 
 
@@ -121,13 +124,16 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 	double Gr = r->getAntenna()->getRxGain(dX, dY, dZ, lambda);
 
 	// calculate receiving power at reference distance
-  double txpr = t->getTxPr();
-  if ( t->getPrLevel() > 0 ) {
-    txpr = pow10((double)t->getPrLevel()/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
-    //fprintf(stderr,"Power(db): %d Power: %e old: %e\n",t->getPrLevel(),txpr, t->getTxPr());
-  }
-	double Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
+  double txpr;
+  int PrLevel = t->getPrLevel();
 
+  if ( PrLevel == 0 ) txpr = t->getTxPr();
+  else if ( PrLevel < MADWIFI_DB2MW_SIZE ) txpr = madwifi_db_to_mw[PrLevel];
+  else txpr = pow10(((double)PrLevel)/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
+
+  double Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
+
+	//fprintf(stderr," %d %e %e Dist: %f\n",t->getPrLevel(),txpr, Pr0, dist);
 	// calculate average power loss predicted by path loss model
 	double avg_db;
         if (dist > dist0_) {

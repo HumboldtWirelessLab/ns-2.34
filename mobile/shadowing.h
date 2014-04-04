@@ -61,6 +61,8 @@
 #include <rng.h>
 #include <float.h>
 
+#define MADWIFI_DB2MW_SIZE 200
+
 class Shadowing : public Propagation {
 public:
 	Shadowing();
@@ -79,6 +81,7 @@ protected:
 	double std_db_;		// shadowing deviation (dB),
 	double dist0_;	// close-in reference distance
 	int seed_;	// seed for random number generator
+	double madwifi_db_to_mw[MADWIFI_DB2MW_SIZE];
 };
 
 #endif
