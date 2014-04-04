@@ -92,6 +92,7 @@ map<u_int32_t,int> ClickClassifier::global_ipmap_;
 ClickClassifier::ClickClassifier() {
   extrouter_ = this;
   click_initialized_ = false;
+  packetzerocopy_ = false;
 }
 
 int
@@ -152,6 +153,11 @@ ClickClassifier::command(int argc, const char*const* argv)
       logtarget_ = ( CMUTrace* ) TclObject::lookup(argv[2]);
       if (logtarget_ == 0)
           return TCL_ERROR;
+      return TCL_OK;
+    }
+    if (strcmp(argv[1], "packetzerocopy") == 0) {
+      packetzerocopy_ = false;
+      if (strcmp(argv[2], "true") == 0) packetzerocopy_ = true;
       return TCL_OK;
     }
   }
@@ -231,14 +237,27 @@ ClickClassifier::route(Packet* p) {
     simpinfo.id = chdr->uid();
     simpinfo.fid = iphdr->flowid();
     simpinfo.txfeedback = (chdr->txfeedback() == hdr_cmn::YES)?1:0;
+    simpinfo.zero_copy = packetzerocopy_?1:0;
     hdr_raw* rhdr = hdr_raw::access(p);
     int nssubtype = rhdr->subtype;
     int clicktype = GetClickPacketType(nssubtype);
     simpinfo.simtype = rhdr->ns_type;
+
+    simclick_node_t::curtime = GetSimTime();
+    //fprintf(stderr,"Sending packet up to click...\n");
+
     unsigned char* pdat = p->accessdata();
-    data = new unsigned char[len];
-	memcpy(data,pdat,len);
-	
+
+    if ( packetzerocopy_ ) {
+      PacketData *pdata = (PacketData*)(p->userdata());
+      data = pdat;
+      pdata->unlink_data();
+      //fprintf(stderr, "Datapointer: %p Ref: %d Time: %f F: %d\n",p->accessdata(), p->ref_count(), GetSimTime(), simpinfo.txfeedback);
+    } else {
+      data = new unsigned char[len];
+      memcpy(data,pdat,len);
+    }
+
     /*
      * XXX Destroy packet for now. This may change if we wind
      * up having to track and reuse ns packets after they've gone through
@@ -247,10 +266,8 @@ ClickClassifier::route(Packet* p) {
     Packet::free(p);
     p = NULL;
 
-    simclick_node_t::curtime = GetSimTime();
-    //fprintf(stderr,"Sending packet up to click...\n");
     simclick_click_send(this,ifid,clicktype,data,len,&simpinfo);
-    delete[] data;
+    if (simpinfo.zero_copy == 0) delete[] data;                 //if no zero_copy, we have to delete data
     data = 0;
   }
   else {
@@ -638,16 +655,27 @@ ClickClassifier::LinkLayerFailed(Packet* p) {
     simpinfo.id = chdr->uid();
     simpinfo.fid = iphdr->flowid();
     simpinfo.txfeedback = (chdr->txfeedback() == hdr_cmn::YES)?1:0;
+    simpinfo.zero_copy = packetzerocopy_?1:0;
     hdr_raw* rhdr = hdr_raw::access(p);
     int nssubtype = rhdr->subtype;
     int clicktype = GetClickPacketType(nssubtype);
-    unsigned char* pdat = p->accessdata();
-    data = new unsigned char[len];
-    memcpy(data,pdat,len);
     simclick_node_t::curtime = GetSimTime();
+
+    unsigned char* pdat = p->accessdata();
+
+    if ( packetzerocopy_ ) {
+      PacketData *pdata = (PacketData*)(p->userdata());
+      data = pdat;
+      pdata->unlink_data();
+      //fprintf(stderr, "Datapointer: %p\n",p->accessdata() );
+    } else {
+      data = new unsigned char[len];
+      memcpy(data,pdat,len);
+    }
+
     //fprintf(stderr,"Sending packet up to click...\n");
     simclick_click_send(this,ifid,clicktype,data,len,&simpinfo);
-    delete[] data;
+    if (simpinfo.zero_copy == 0) delete[] data;                 //if no zero_copy, we have to delete data
     data = 0;
   }
   else {

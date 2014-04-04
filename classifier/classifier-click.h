@@ -167,6 +167,7 @@ class ClickClassifier : public ExtClassifier, public ExtRouter,
   string nodename_;
   int nodeaddr_;
   bool click_initialized_;
+  bool packetzerocopy_;
 
 
 
