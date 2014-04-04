@@ -439,6 +439,7 @@ WirelessPhy::sendUp(Packet *p)
 		s.stamp((MobileNode*)node(), ant_, 0, lambda_);
 		Pr = propagation_->Pr(&p->txinfo_, &s, this);
 
+		//fprintf(stderr,"PR: %e\n",Pr);
     //analog to atheros formule -95dBm is lowest sens.
 #define BRN_MADWIFI
 #ifndef BRN_MADWIFI

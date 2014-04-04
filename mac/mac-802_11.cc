@@ -1448,11 +1448,6 @@ Mac802_11::sendRTS(int dst)
 			return;
 		}
 
-		if	( ceh->power > 0){
-			p->txinfo_.setPrLevel(ceh->power);
-      if ( macmib_.getMadwifiTPC() == 0 ) p->txinfo_.setPrLevel(2 * ceh->power);
-		}
-
 	} else {
 		// normal case
 		if( (u_int32_t) HDR_CMN(pktTx_)->size() < macmib_.getRTSThreshold() ||
@@ -1467,6 +1462,7 @@ Mac802_11::sendRTS(int dst)
 	ch->size() = phymib_.getRTSlen();
 	ch->iface() = -2;
 	ch->error() = 0;
+	p->txinfo_.setPrLevel(0);      //set power for rts/cts to 0 -> use default power
   p->txinfo_.setRate(basicRate_);
 
 	bzero(rf, MAC_HDR_LEN);
@@ -1520,6 +1516,7 @@ Mac802_11::sendCTS(int dst, double rts_duration)
 	ch->error() = 0;
 	//ch->direction() = hdr_cmn::DOWN;
   p->txinfo_.setRate(basicRate_);
+	p->txinfo_.setPrLevel(0);      //set power for rts/cts to 0 -> use default power
 
 	bzero(cf, MAC_HDR_LEN);
 
@@ -1569,6 +1566,7 @@ Mac802_11::sendACK(int dst)
 	ch->iface() = -2;
 	ch->error() = 0;
   p->txinfo_.setRate(basicRate_);
+	p->txinfo_.setPrLevel(0);      //set power for ACK to 0 -> use default power
 
 	bzero(af, MAC_HDR_LEN);
 
@@ -1632,6 +1630,7 @@ Mac802_11::sendDATA(Packet *p)
 
 	/* store data tx time */
  	ch->txtime() = txtime(ch->size(), dataRate_);
+	p->txinfo_.setPrLevel(0);
 
 	if(dst != MAC_BROADCAST) {
 		/* store data tx time for unicast packets */
@@ -1646,6 +1645,7 @@ Mac802_11::sendDATA(Packet *p)
 				ch->txtime() = txtime(ch->size(),rate);
 				p->txinfo_.setRate(rate);
 			}
+
 			if	( ceh->power > 0){
         //fprintf(stderr, "Uni Power: %d\n",ceh->power);
 				p->txinfo_.setPrLevel(ceh->power);
@@ -1662,6 +1662,7 @@ Mac802_11::sendDATA(Packet *p)
 		/* store data tx time for broadcast packets (see 9.6) */
 		ch->txtime() = txtime(ch->size(), basicRate_);
 		p->txinfo_.setRate(basicRate_);
+		p->txinfo_.setPrLevel(0);
 
     // nsmadwifi
     if ( ceh != 0 ) {
@@ -1671,9 +1672,9 @@ Mac802_11::sendDATA(Packet *p)
         p->txinfo_.setRate(rate);
       }
       if  ( ceh->power > 0){
+        //fprintf(stderr, "bcast Power: %d\n",ceh->power);
         p->txinfo_.setPrLevel(ceh->power);
         if ( macmib_.getMadwifiTPC() == 0 ) p->txinfo_.setPrLevel(2 * ceh->power);
-        //fprintf(stderr, "bcast Power: %d\n",ceh->power);
       }
     }
     dh->dh_duration = 0;
@@ -2438,7 +2439,7 @@ Mac802_11::recvRTS(Packet *p)
   if (macmib_.getControlFrames() == 1) {
 
     //fprintf(stderr,"Pommes Mode\n");
-    Packet* p_rts = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct rts_frame_no_fcs));
+    Packet* p_rts = Packet::alloc((int)(sizeof(click_wifi_extra) + sizeof(struct rts_frame_no_fcs)));
     unsigned char *rts_data = p_rts->accessdata();
     click_wifi_extra* ceh_rts = (click_wifi_extra*)(p_rts->accessdata());
     memset((unsigned char*)ceh_rts,0,sizeof(click_wifi_extra));
@@ -2555,7 +2556,7 @@ Mac802_11::recvCTS(Packet *p)
   /* Create CTS frame for upper layer */
   if ( macmib_.getControlFrames() == 1 ) {
     //fprintf(stderr,"Pommes Mode\n");
-    Packet* p_cts = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct cts_frame_no_fcs));
+    Packet* p_cts = Packet::alloc((int)(sizeof(click_wifi_extra) + sizeof(struct cts_frame_no_fcs)));
     unsigned char *cts_data = p_cts->accessdata();
     click_wifi_extra* ceh_cts = (click_wifi_extra*)(p_cts->accessdata());
     memset((unsigned char*)ceh_cts,0,sizeof(click_wifi_extra));
@@ -2818,7 +2819,7 @@ Mac802_11::recvACK(Packet *p)
 
     if ( (macmib_.getControlFrames() == 1) && ( macmib_.getPromisc() == 1 ) ) {
       //fprintf(stderr,"Pommes Mode, recv ack\n");
-      Packet* p_ack = Packet::alloc(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs));
+      Packet* p_ack = Packet::alloc((int)(sizeof(click_wifi_extra) + sizeof(struct ack_frame_no_fcs)));
       unsigned char *ack_data = p_ack->accessdata();
       click_wifi_extra* ceh_ack = (click_wifi_extra*)(p_ack->accessdata());
       memset((unsigned char*)ceh_ack,0,sizeof(click_wifi_extra));
