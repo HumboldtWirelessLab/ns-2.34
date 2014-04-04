@@ -47,6 +47,9 @@
 #include "packet-stamp.h"
 #include "ns-process.h"
 
+#define DISABLE_PACKET_CLEAR false
+#define ENABLE_PACKET_CLEAR true
+
 // Used by wireless routing code to attach routing agent
 #define RT_PORT		255	/* port that all route msgs are sent to */
 
@@ -457,6 +460,12 @@ public:
     fprintf(stderr,"\n");*/
     return new PacketData(*this);
   }
+
+  void unlink_data() {
+    data_ = NULL;
+    datalen_ = 0;
+  }
+
 private:
 	unsigned char* data_;
 	int datalen_;
@@ -471,7 +480,7 @@ private:
 //	unsigned char* data_;	// variable size buffer for 'data'
 //  	unsigned int datalen_;	// length of variable size buffer
 	AppData* data_;		// variable size buffer for 'data'
-	static void init(Packet*);     // initialize pkt hdr 
+	static void init(Packet*, bool clear_packet);     // initialize pkt hdr 
 	bool fflag_;
 protected:
 	static Packet* free_;	// packet free list
@@ -485,6 +494,7 @@ public:
 	inline Packet* copy() const;
 	inline Packet* refcopy() { ++ref_count_; return this; }
 	inline int& ref_count() { return (ref_count_); }
+	static inline Packet* alloc(bool clear_packet);
 	static inline Packet* alloc();
 	static inline Packet* alloc(int);
 	inline void allocdata(int);
@@ -673,13 +683,18 @@ public:
 };
 
 
-inline void Packet::init(Packet* p)
+inline void Packet::init(Packet* p, bool clear_packet)
 {
-	bzero(p->bits_, hdrlen_);
+	if (clear_packet) bzero(p->bits_, hdrlen_);
 	p->txinfo_.clear();
 }
 
 inline Packet* Packet::alloc()
+{
+  return alloc(ENABLE_PACKET_CLEAR);
+}
+
+inline Packet* Packet::alloc(bool clear_packet)
 {
 	Packet* p = free_;
 	if (p != 0) {
@@ -694,7 +709,7 @@ inline Packet* Packet::alloc()
 		if (p == 0 || p->bits_ == 0)
 			abort();
 	}
-	init(p); // Initialize bits_[]
+	init(p, clear_packet); // Initialize bits_[]
 	(HDR_CMN(p))->next_hop_ = -2; // -1 reserved for IP_BROADCAST
 	(HDR_CMN(p))->last_hop_ = -2; // -1 reserved for IP_BROADCAST
 	p->fflag_ = TRUE;
@@ -721,7 +736,7 @@ inline void Packet::allocdata(int n)
 /* allocate a packet with an n byte data buffer */
 inline Packet* Packet::alloc(int n)
 {
-	Packet* p = alloc();
+	Packet* p = alloc(ENABLE_PACKET_CLEAR);
 	if (n > 0) 
 		p->allocdata(n);
 	return (p);
@@ -742,7 +757,7 @@ inline void Packet::free(Packet* p)
 				delete p->data_;
 				p->data_ = 0;
 			}
-			init(p);
+			init(p, DISABLE_PACKET_CLEAR);
 			p->next_ = free_;
 			free_ = p;
 			p->fflag_ = FALSE;
@@ -763,7 +778,7 @@ inline Packet* Packet::copy() const
       fprintf(stderr,"%x",bits_[i]);
   }
   fprintf(stderr,"\n");*/
-  Packet* p = alloc();
+  Packet* p = alloc(ENABLE_PACKET_CLEAR);
 	memcpy(p->bits(), bits_, hdrlen_);
 	if (data_) {
 		p->data_ = data_->copy();
