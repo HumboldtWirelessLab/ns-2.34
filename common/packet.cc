@@ -58,6 +58,7 @@ int p_info::addPacket(char *name)
 }
 
 int Packet::hdrlen_ = 0;		// size of a packet's header
+int Packet::clear_packet_ = 1;
 Packet* Packet::free_;			// free list
 int hdr_cmn::offset_;			// static offset of common header
 int hdr_flags::offset_;			// static offset of flags header
@@ -149,6 +150,7 @@ class PacketHeaderManager : public TclObject {
 public:
 	PacketHeaderManager() {
 		bind("hdrlen_", &Packet::hdrlen_);
+		bind("clear_packet_", &Packet::clear_packet_);
 	}
 };
 

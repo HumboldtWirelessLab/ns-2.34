@@ -488,6 +488,7 @@ protected:
 public:
 	Packet* next_;		// for queues and the free list
 	static int hdrlen_;
+	static int clear_packet_;
 
 	Packet() : bits_(0), data_(0), ref_count_(0), next_(0) { }
 	inline unsigned char* const bits() { return (bits_); }
@@ -709,7 +710,7 @@ inline Packet* Packet::alloc(bool clear_packet)
 		if (p == 0 || p->bits_ == 0)
 			abort();
 	}
-	init(p, clear_packet); // Initialize bits_[]
+	init(p, ENABLE_PACKET_CLEAR); // Initialize bits_[]
 	(HDR_CMN(p))->next_hop_ = -2; // -1 reserved for IP_BROADCAST
 	(HDR_CMN(p))->last_hop_ = -2; // -1 reserved for IP_BROADCAST
 	p->fflag_ = TRUE;
@@ -757,7 +758,7 @@ inline void Packet::free(Packet* p)
 				delete p->data_;
 				p->data_ = 0;
 			}
-			init(p, DISABLE_PACKET_CLEAR);
+			init(p, (Packet::clear_packet_ == 1));
 			p->next_ = free_;
 			free_ = p;
 			p->fflag_ = FALSE;
@@ -778,7 +779,7 @@ inline Packet* Packet::copy() const
       fprintf(stderr,"%x",bits_[i]);
   }
   fprintf(stderr,"\n");*/
-  Packet* p = alloc(ENABLE_PACKET_CLEAR);
+  Packet* p = alloc((Packet::clear_packet_ == 1));
 	memcpy(p->bits(), bits_, hdrlen_);
 	if (data_) {
 		p->data_ = data_->copy();

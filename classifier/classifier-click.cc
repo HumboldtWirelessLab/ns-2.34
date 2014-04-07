@@ -269,6 +269,7 @@ ClickClassifier::route(Packet* p) {
     simclick_click_send(this,ifid,clicktype,data,len,&simpinfo);
     if (simpinfo.zero_copy == 0) delete[] data;                 //if no zero_copy, we have to delete data
     data = 0;
+    pdat = 0;
   }
   else {
     fprintf(stderr,"No click upcall set!\n");
