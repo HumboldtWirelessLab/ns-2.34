@@ -1730,6 +1730,9 @@ Mac802_11::RetransmitRTS()
                         ch->xmit_reason_ = XMIT_REASON_RTS;
                         ch->xmit_failure_(pktTx_->copy(),
                                           ch->xmit_failure_data_);
+                } else {
+                  ch->size() -= phymib_.getHdrLen11();
+                  ch->xmit_reason_ = XMIT_REASON_RTS;
                 }
 
 		if (ceh != 0){
@@ -1909,6 +1912,9 @@ Mac802_11::RetransmitDATA()
 			ch->xmit_reason_ = XMIT_REASON_ACK;
                         ch->xmit_failure_(pktTx_->copy(),
                                           ch->xmit_failure_data_);
+                } else {
+                  ch->size() -= phymib_.getHdrLen11();
+                  ch->xmit_reason_ = XMIT_REASON_ACK;
                 }
 
 		if (ceh != 0){

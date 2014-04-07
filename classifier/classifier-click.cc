@@ -716,8 +716,10 @@ ClickClassifier::MakeRawPacket(int type,int ifid,const unsigned char* data,
     chdr->uid() = Agent::getnextuid();
   }
   rhdr->ns_type = (-1 == pinfo->simtype) ? PT_RAW : pinfo->simtype;
-  chdr->xmit_failure_ = LinkLayerFailedCallback;
-  chdr->xmit_failure_data_ = (void*)this;
+  //chdr->xmit_failure_ = LinkLayerFailedCallback;
+  //chdr->xmit_failure_data_ = (void*)this;
+  chdr->xmit_failure_ = NULL;
+  chdr->xmit_failure_data_ = NULL;
 
   hdr_ip* iphdr = hdr_ip::access(pkt);
   iphdr->flowid() = 0;
