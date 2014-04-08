@@ -137,8 +137,11 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 	double Xt, Yt, Zt;		// loc of transmitter
 	double Xr, Yr, Zr;		// loc of receiver
 
-  int tNodeID = t->getNode()->id_;
-  int rNodeID = r->getNode()->id_;
+  MobileNode *tNode = t->getNode();
+  MobileNode *rNode = r->getNode();
+
+  int tNodeID = tNode->id_;
+  int rNodeID = rNode->id_;
   int PrLevel = t->getPrLevel();
 
   int lookup_index_ = (((tNodeID << no_nodes_shift_) + rNodeID) << POWER_STEPS_SHIFT) + PrLevel;
@@ -151,11 +154,20 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 
   if ( (Pr0_lookup_array != NULL) && (tNodeID < no_nodes_) && (rNodeID < no_nodes_) &&
        (PrLevel > 0) && (PrLevel < MADWIFI_DB2MW_SIZE)) {
-    use_cache = true;
-    Pr0 = Pr0_lookup_array[lookup_index_];
-    if ( Pr0 != 0.0 ) {
-      cached = true;
-      avg_db = avg_db_lookup_array[lookup_index_];
+
+    if ((tNode->speed() != 0.0) || (rNode->speed() != 0)) {
+      //detect mobility: remove cache
+      delete[] Pr0_lookup_array;
+      delete[] avg_db_lookup_array;
+      Pr0_lookup_array = NULL;
+      avg_db_lookup_array = NULL;
+    } else {
+      use_cache = true;
+      Pr0 = Pr0_lookup_array[lookup_index_];
+      if ( Pr0 != 0.0 ) {
+        cached = true;
+        avg_db = avg_db_lookup_array[lookup_index_];
+      }
     }
   }
 
