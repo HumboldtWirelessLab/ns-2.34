@@ -62,6 +62,8 @@
 #include <float.h>
 
 #define MADWIFI_DB2MW_SIZE 200
+#define POWER_STEPS 64
+#define POWER_STEPS_SHIFT 6
 
 class Shadowing : public Propagation {
 public:
@@ -82,6 +84,11 @@ protected:
 	double dist0_;	// close-in reference distance
 	int seed_;	// seed for random number generator
 	double madwifi_db_to_mw[MADWIFI_DB2MW_SIZE];
+  int no_nodes_;
+  int no_nodes_shift_;
+
+  double *Pr0_lookup_array;
+  double *avg_db_lookup_array;
 };
 
 #endif

@@ -63,6 +63,7 @@
 #include <propagation.h>
 #include <wireless-phy.h>
 #include <shadowing.h>
+#include "scheduler.h"
 
 
 static class ShadowingClass: public TclClass {
@@ -76,22 +77,55 @@ public:
 
 Shadowing::Shadowing()
 {
+  no_nodes_ = -1;
+  no_nodes_shift_ = -1;
+
 	bind("pathlossExp_", &pathlossExp_);
 	bind("std_db_", &std_db_);
 	bind("dist0_", &dist0_);
 	bind("seed_", &seed_);
+  bind("nonodes_", &no_nodes_);
 	
 	ranVar = new RNG;
 	ranVar->set_seed(RNG::PREDEF_SEED_SOURCE, seed_);
 
   for ( int i = 0; i < 200; i++ )
     madwifi_db_to_mw[i] = pow10(((double)i)/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
+
+  if ( no_nodes_ > 0 ) {
+    if ( no_nodes_ < 16  ) {
+      no_nodes_ = 16;
+      no_nodes_shift_ = 4;
+    } else if ( no_nodes_ < 64  ) {
+      no_nodes_ = 64;
+      no_nodes_shift_ = 6;
+    } else if ( no_nodes_ < 256  ) {
+      no_nodes_ = 256;
+      no_nodes_shift_ = 8;
+    } else {
+      no_nodes_ = 0;
+    }
+  }
+
+  if ( no_nodes_<= 0 ) {
+    Pr0_lookup_array = NULL;
+    avg_db_lookup_array = NULL;
+  } else {
+    Pr0_lookup_array = new double[no_nodes_ * no_nodes_ * POWER_STEPS];
+    avg_db_lookup_array = new double[no_nodes_ * no_nodes_ * POWER_STEPS];
+    memset(Pr0_lookup_array,0,no_nodes_ * no_nodes_);
+    memset(avg_db_lookup_array,0,no_nodes_ * no_nodes_);
+  }
 }
 
 
 Shadowing::~Shadowing()
 {
 	delete ranVar;
+  if ( Pr0_lookup_array != NULL ) {
+    delete[] Pr0_lookup_array;
+    delete[] avg_db_lookup_array;
+  }
 }
 
 
@@ -103,45 +137,69 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 	double Xt, Yt, Zt;		// loc of transmitter
 	double Xr, Yr, Zr;		// loc of receiver
 
-	t->getNode()->getLoc(&Xt, &Yt, &Zt);
-	r->getNode()->getLoc(&Xr, &Yr, &Zr);
-
-	// Is antenna position relative to node position?
-	Xr += r->getAntenna()->getX();
-	Yr += r->getAntenna()->getY();
-	Zr += r->getAntenna()->getZ();
-	Xt += t->getAntenna()->getX();
-	Yt += t->getAntenna()->getY();
-	Zt += t->getAntenna()->getZ();
-
-	double dX = Xr - Xt;
-	double dY = Yr - Yt;
-	double dZ = Zr - Zt;
-	double dist = sqrt(dX * dX + dY * dY + dZ * dZ);
-
-	// get antenna gain
-	double Gt = t->getAntenna()->getTxGain(dX, dY, dZ, lambda);
-	double Gr = r->getAntenna()->getRxGain(dX, dY, dZ, lambda);
-
-	// calculate receiving power at reference distance
-  double txpr;
+  int tNodeID = t->getNode()->id_;
+  int rNodeID = r->getNode()->id_;
   int PrLevel = t->getPrLevel();
 
-  if ( PrLevel == 0 ) txpr = t->getTxPr();
-  else if ( PrLevel < MADWIFI_DB2MW_SIZE ) txpr = madwifi_db_to_mw[PrLevel];
-  else txpr = pow10(((double)PrLevel)/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
+  int lookup_index_ = (((tNodeID << no_nodes_shift_) + rNodeID) << POWER_STEPS_SHIFT) + PrLevel;
 
-  double Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
+  bool cached = false;
+  bool use_cache = false;
 
-	//fprintf(stderr," %d %e %e Dist: %f\n",t->getPrLevel(),txpr, Pr0, dist);
-	// calculate average power loss predicted by path loss model
-	double avg_db;
-        if (dist > dist0_) {
-            avg_db = -10.0 * pathlossExp_ * log10(dist/dist0_);
-        } else {
-            avg_db = 0.0;
-        }
-   
+  double avg_db = 0.0;
+  double Pr0;
+
+  if ( (Pr0_lookup_array != NULL) && (tNodeID < no_nodes_) && (rNodeID < no_nodes_) &&
+       (PrLevel > 0) && (PrLevel < MADWIFI_DB2MW_SIZE)) {
+    use_cache = true;
+    Pr0 = Pr0_lookup_array[lookup_index_];
+    if ( Pr0 != 0.0 ) {
+      cached = true;
+      avg_db = avg_db_lookup_array[lookup_index_];
+    }
+  }
+
+  if ( !cached ) {
+    t->getNode()->getLoc(&Xt, &Yt, &Zt);
+    r->getNode()->getLoc(&Xr, &Yr, &Zr);
+
+    // Is antenna position relative to node position?
+    Xr += r->getAntenna()->getX();
+    Yr += r->getAntenna()->getY();
+    Zr += r->getAntenna()->getZ();
+    Xt += t->getAntenna()->getX();
+    Yt += t->getAntenna()->getY();
+    Zt += t->getAntenna()->getZ();
+
+    double dX = Xr - Xt;
+    double dY = Yr - Yt;
+    double dZ = Zr - Zt;
+    double dist = sqrt(dX * dX + dY * dY + dZ * dZ);
+
+    // get antenna gain
+    double Gt = t->getAntenna()->getTxGain(dX, dY, dZ, lambda);
+    double Gr = r->getAntenna()->getRxGain(dX, dY, dZ, lambda);
+
+    // calculate receiving power at reference distance
+    double txpr;
+
+    if ( PrLevel == 0 ) txpr = t->getTxPr();
+    else if ( PrLevel < MADWIFI_DB2MW_SIZE ) txpr = madwifi_db_to_mw[PrLevel];
+    else txpr = pow10(((double)PrLevel)/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
+
+    Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
+
+    //fprintf(stderr,"%f: %d %e %e Dist: %f (%f,%f,%f) -> (%f,%f,%f) %d -> %d\n", Scheduler::instance().clock(),t->getPrLevel(),txpr, Pr0, dist,Xt, Yt, Zt,Xr, Yr, Zr, tNodeID, rNodeID );
+
+    // calculate average power loss predicted by path loss model
+    if (dist > dist0_) avg_db = -10.0 * pathlossExp_ * log10(dist/dist0_);
+
+    if ( use_cache ) {
+      Pr0_lookup_array[lookup_index_] = Pr0;
+      avg_db_lookup_array[lookup_index_] = avg_db;
+    }
+  }
+
 	// get power loss by adding a log-normal random variable (shadowing)
 	// the power loss is relative to that at reference distance dist0_
 	double powerLoss_db = avg_db + ranVar->normal(0.0, std_db_);
