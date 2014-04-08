@@ -68,6 +68,8 @@
 // is unhappy. 
 static LIST_HEAD(_dummy_MobileNodeList, MobileNode) nodehead = { 0 };
 
+int MobileNode::id_counter_ = 0;
+
 static class MobileNodeClass : public TclClass {
 public:
         MobileNodeClass() : TclClass("Node/MobileNode") {}
@@ -133,6 +135,8 @@ MobileNode::MobileNode(void) :
 	position_update_interval_ = MN_POSITION_UPDATE_INTERVAL;
 	position_update_time_ = 0.0;
 	
+  id_ = id_counter_;
+  id_counter_++;
 
 	LIST_INSERT_HEAD(&nodehead, this, link_);	// node list
 	LIST_INIT(&ifhead_);				// interface list

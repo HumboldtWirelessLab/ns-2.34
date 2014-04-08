@@ -242,6 +242,9 @@ private:
 public:
         int	set_destination(double x, double y, double z, double speed) { return set_destination(x, y, speed); }
 
+  int id_;
+  static int id_counter_;
+
 };
 
 #endif // ns_mobilenode_h
