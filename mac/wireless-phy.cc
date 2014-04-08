@@ -123,7 +123,14 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 #endif
 	//bind("bandwidth_", &bandwidth_);
 	bind("Pt_", &Pt_);
-  if ( Pt_ > 1 ) Pt_ = pow10(Pt_/10) / 1000; //dbm to Watt ( /1000)
+  if ( Pt_ > 1 ) {
+    Pt_dbm_ = Pt_;
+    Pt_ = pow10(Pt_/10) / 1000; //dbm to Watt ( /1000)
+  } else {
+    Pt_dbm_ = (10 * log10(Pt_));
+  }
+  Pt_dbm_ *= 2; //double Power to enable 0.5 dbm steps
+
 	bind("freq_", &freq_);
 	bind("L_", &L_);
 
@@ -375,6 +382,7 @@ WirelessPhy::sendDown(Packet *p)
 	 *  Stamp the packet with the interface arguments
 	 */
 	p->txinfo_.stamp((MobileNode*)node(), ant_->copy(), Pt_, lambda_);
+  if ( p->txinfo_.getPrLevel() == 0 )  p->txinfo_.setPrLevel(Pt_dbm_);
 	
 	// Send the packet
 	channel_->recv(p, this);

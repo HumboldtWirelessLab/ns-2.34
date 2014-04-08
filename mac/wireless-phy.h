@@ -110,6 +110,7 @@ public:
 
 protected:
 	double Pt_;		// transmitted signal power (W)
+	double Pt_dbm_;   // transmitted signal power (dbm)
 	double Pt_consume_;	// power consumption for transmission (W)
 	double Pr_consume_;	// power consumption for reception (W)
 	double P_idle_;         // idle power consumption (W)
