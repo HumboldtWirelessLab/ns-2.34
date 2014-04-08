@@ -54,7 +54,7 @@ public:
   inline void setRate(double r){rate =r;}
   inline double getRate(){return rate;}
   inline int getChannel(){return channel;}
-  inline int setChannel(int c){ channel = c;}
+  inline void setChannel(int c){ channel = c;}
 
   /* WILD HACK: The following two variables are a wild hack.
      They will go away in the next release...
