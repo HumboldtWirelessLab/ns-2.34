@@ -1462,7 +1462,14 @@ Mac802_11::sendRTS(int dst)
 	ch->size() = phymib_.getRTSlen();
 	ch->iface() = -2;
 	ch->error() = 0;
-	p->txinfo_.setPrLevel(0);      //set power for rts/cts to 0 -> use default power
+
+  if  ( ceh->power > 0){
+    if ( macmib_.getMadwifiTPC() == 0 ) p->txinfo_.setPrLevel(2 * ceh->power);
+    else p->txinfo_.setPrLevel(ceh->power);
+  } else {
+    p->txinfo_.setPrLevel(0);      //set power for rts/cts to 0 -> use default power
+  }
+
   p->txinfo_.setRate(basicRate_);
 
 	bzero(rf, MAC_HDR_LEN);
