@@ -489,21 +489,23 @@ PHY_MIB::setBackoffQueueInfo(int *boq)
 {
   int mq = MAC_Max_HW_Queue;
   if ( boq[0] < mq ) mq = boq[0];
+  boq[1] = MAC_Max_HW_Queue;
 
   for ( int q = 0; q < mq; q++) {
-     CWMin[q] = boq[1 + q];
-     CWMax[q] = boq[1 + boq[0] + q];
+     CWMin[q] = boq[2 + q];
+     CWMax[q] = boq[2 + boq[0] + q];
   }
 }
 
 void
 PHY_MIB::getBackoffQueueInfo(int *boq)
 {
-  if ( boq[0] > MAC_Max_HW_Queue ) boq[0] = MAC_Max_HW_Queue;
+  if ( boq[0] > MAC_Max_HW_Queue ) boq[0] = MAC_Max_HW_Queue; //how many queues are in the data
+  boq[1] = MAC_Max_HW_Queue;                                  //how many queues are present
 
   for ( int q = 0; q < boq[0]; q++) {
-     boq[1 + q] = CWMin[q];
-     boq[1 + boq[0] + q] = CWMax[q];
+     boq[2 + q] = CWMin[q];
+     boq[2 + boq[0] + q] = CWMax[q];
   }
 }
 

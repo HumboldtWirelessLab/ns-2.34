@@ -881,15 +881,18 @@ ClickClassifier::HandleCCAOperation(int *cca) {
       double rx_t = ((WirelessPhy*)(llext->getMac()->getPhy()))->getRXThresh();
       double cs_t = ((WirelessPhy*)(llext->getMac()->getPhy()))->getCSThresh();
       double cp_t = ((WirelessPhy*)(llext->getMac()->getPhy()))->getCPThresh();
-      //fprintf(stderr,"CCA: %f %f %f\n",rx_t,cs_t,cp_t);
-      cca[1] = round((10 * log10(cs_t)));
-      cca[2] = round((10 * log10(rx_t)));
-      cca[3] = round(cp_t);
+
+      cca[1] = round((10 * log10(cs_t))); //dbm
+      cca[2] = round((10 * log10(rx_t))); //dbm
+      cca[3] = round(cp_t);               //dbm
+
+      //fprintf(stderr,"CCA: %e %e %f\n",rx_t,cs_t,cp_t);
+      //fprintf(stderr,"CCA(dbm): %d %d %d\n",cca[1],cca[2],cca[3]);
     }
     if ( cca[0] == 1 ) {//set
-      ((WirelessPhy*)(llext->getMac()->getPhy()))->setCSThresh(pow(10.0,(((double)cca[1])/10.0)));
-      ((WirelessPhy*)(llext->getMac()->getPhy()))->setRXThresh(pow(10.0,(((double)cca[2])/10.0)));
-      ((WirelessPhy*)(llext->getMac()->getPhy()))->setCPThresh((double)cca[3]);
+      if (cca[0] != 0) ((WirelessPhy*)(llext->getMac()->getPhy()))->setCSThresh(pow(10.0,(((double)cca[1])/10.0)));
+      if (cca[0] != 0) ((WirelessPhy*)(llext->getMac()->getPhy()))->setRXThresh(pow(10.0,(((double)cca[2])/10.0)));
+      if (cca[0] != 0) ((WirelessPhy*)(llext->getMac()->getPhy()))->setCPThresh((double)cca[3]);
     }
   } else {
     fprintf(stderr,"ERROR: network interface does not exist\n");
