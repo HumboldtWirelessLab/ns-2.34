@@ -151,6 +151,7 @@ class ClickClassifier : public ExtClassifier, public ExtRouter,
   int SetBackoffQueueInfo(int *boq);
   int GetBackoffQueueInfo(int *boq);
   int HandleTXControl(char *txh);
+  int GetRxTxStats(void *rxtxstats);
 
  protected:
   int GetNSSubtype(int clicktype);

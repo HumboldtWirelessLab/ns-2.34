@@ -49,6 +49,8 @@
 #include <stddef.h>
 #include <list>
 
+#include <click/../../elements/brn/wifi/brnwifi.hh>
+
 class EventTrace;
 
 #define GET_ETHER_TYPE(x)		GET2BYTE((x))
@@ -444,6 +446,7 @@ public:
         void setBackoffQueueInfo(int *boq);
         void getBackoffQueueInfo(int *boq);
         void handleTXControl(char *txc);
+        void getRxTxStats(void *rxtx_stats);
 
 protected:
 	void	backoffHandler(void);
@@ -689,6 +692,8 @@ private:
   uint8_t tx_target_mac_[6];
   enum    {TX_CONTROL_IDLE = 0, TX_CONTROL_BUSY = 1, TX_CONTROL_ABORT = 2};
   uint8_t tx_control_state_;
+
+  struct rx_tx_stats rxtx_stats_;
 };
 
 #endif /* __mac_80211_h__ */

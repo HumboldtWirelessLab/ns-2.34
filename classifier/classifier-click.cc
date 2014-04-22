@@ -510,6 +510,11 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
         cc->HandleTXControl(txch);
         break;
       }
+      case SIMCLICK_WIFI_GET_RXTXSTATS: {
+        void *rxtxstats = va_arg(val, void *);
+        cc->GetRxTxStats(rxtxstats);
+        break;
+      }
       default:
 	r = -1;
 	break;
@@ -941,3 +946,15 @@ ClickClassifier::HandleTXControl(char *txc) {
   return 0;
 }
 
+int
+ClickClassifier::GetRxTxStats(void *rxtxstats) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((Mac802_11*)(llext->getMac()))->getRxTxStats(rxtxstats);
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}

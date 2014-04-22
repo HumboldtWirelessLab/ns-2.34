@@ -67,7 +67,6 @@
 #include "basetrace.h"
 
 #include <click/../../elements/brn/routing/identity/txcontrol.h>
-#include <click/../../elements/brn/wifi/brnwifi.hh>
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -79,6 +78,7 @@
 #include "ll-ext.h"
 #include "extrouter.h"
 #include <click/simclick.h>
+#include <click/bitvector.hh>
 #include "classifier-ext.h"
 #include "classifier-click.h"
 #include "classifier-click.h"
@@ -115,8 +115,30 @@ inline void
 Mac802_11::transmit(Packet *p, double timeout)
 {
 	tx_active_ = 1;
-  if ( p == pktTx_ ) tx_count++;
-  if ( p == pktRTS_ ) rts_tx_count++;
+
+  if ( p == pktTx_ ) {
+    struct hdr_mac802_11* dh = HDR_MAC802_11(p);
+    u_int32_t dst = ETHER_ADDR(dh->dh_ra);
+
+    tx_count++;
+    rxtx_stats_.tx_no_data_++;
+
+    if ( dst != MAC_BROADCAST ) rxtx_stats_.tx_no_unic_++;
+    else rxtx_stats_.tx_no_bcast_++;
+
+  } else if ( p == pktRTS_ ) {
+    rts_tx_count++;
+    rxtx_stats_.tx_no_rts_++;
+  } else if ( p == pktCTRL_ ) {
+    hdr_cmn* ch = HDR_CMN(p);
+    struct ack_frame *af = (struct ack_frame*)p->access(hdr_mac::offset_);
+
+    if ( af->af_fc.fc_subtype == MAC_Subtype_ACK ) {
+      rxtx_stats_.tx_no_ack_++;
+    } else if ( af->af_fc.fc_subtype == MAC_Subtype_CTS ) {
+      rxtx_stats_.tx_no_cts_++;
+    }
+  }
 
 	if (EOTtarget_) {
 		assert (eotPacket_ == NULL);
@@ -441,6 +463,14 @@ Mac802_11::transmit_abort(Packet *p, double timeout)
   }
 }
 
+void
+Mac802_11::getRxTxStats(void *rxtx_stats)
+{
+  memcpy(rxtx_stats, &rxtx_stats_, sizeof(struct rx_tx_stats));
+}
+
+
+
 /* ======================================================================
    TCL Hooks for the simulator
    ====================================================================== */
@@ -626,6 +656,8 @@ Mac802_11::Mac802_11() :
   tx_control_state_ = TX_CONTROL_IDLE;
   memset(tx_target_mac_,0,6);
   memset(tx_source_mac_,0,6);
+
+  memset(&rxtx_stats_, 0, sizeof(struct rx_tx_stats));
 
 }
 
@@ -924,6 +956,7 @@ Mac802_11::capture(Packet *p)
 	 */
 	set_nav(usec(phymib_.getEIFS() + txtime(p)));
 	Packet::free(p);
+  rxtx_stats_.no_cap_++;
 }
 
 void
@@ -932,6 +965,8 @@ Mac802_11::collision(Packet *p)
 	switch(rx_state_) {
 	case MAC_RECV:
     setRxState(MAC_COLL, is_jammer_msg(p));
+    rxtx_stats_.no_nodes_col_++;
+    rxtx_stats_.no_packets_col_++;
 		/* fall through */
 	case MAC_COLL:
 		assert(pktRx_);
@@ -951,6 +986,7 @@ Mac802_11::collision(Packet *p)
 		else {
 			discard(p, DROP_MAC_COLLISION);
 		}
+    rxtx_stats_.no_packets_col_++;
 		break;
 	default:
 		assert(0);
@@ -2495,7 +2531,7 @@ Mac802_11::recvRTS(Packet *p)
       ch_rts->direction() = hdr_cmn::UP;
       ch_rts->txfeedback() = hdr_cmn::NO;
 
-      uptarget_->recv(p_rts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
+      uptarget_->recv(p_rts, (Handler*) 0); // promisc
 
       if (dst != (u_int32_t)index_) {
         Packet::free(p);
@@ -2517,6 +2553,7 @@ Mac802_11::recvRTS(Packet *p)
 		return;
 	}
 
+  rxtx_stats_.rx_no_rts_++;
 	sendCTS(ETHER_ADDR(rf->rf_ta), rf->rf_duration);
 
 	/*
@@ -2623,6 +2660,8 @@ Mac802_11::recvCTS(Packet *p)
 		return;
 	}
 
+	rxtx_stats_.rx_no_cts_++;
+
 	assert(pktRTS_);
 	Packet::free(pktRTS_); pktRTS_ = 0;
 
@@ -2678,6 +2717,7 @@ Mac802_11::recvDATA(Packet *p)
 				discard(p, DROP_MAC_BUSY);
 				return;
 			}
+
 			sendACK(src);
 			tx_resume();
 		} else {
@@ -2689,6 +2729,7 @@ Mac802_11::recvDATA(Packet *p)
 				discard(p, DROP_MAC_BUSY);
 				return;
 			}
+
 			sendACK(src);
 			if(mhSend_.busy() == 0)
 				tx_resume();
@@ -2745,7 +2786,13 @@ Mac802_11::recvDATA(Packet *p)
 	 * by reversing the direction!*/
 
 
-
+  if (dst == MAC_BROADCAST) {
+    rxtx_stats_.rx_no_data_++;
+    rxtx_stats_.rx_no_bcast_++;
+  } else if (dst == (u_int32_t)index_) {
+    rxtx_stats_.rx_no_data_++;
+    rxtx_stats_.rx_no_unic_++;
+  }
 
 	if ((bss_id() == addr()) && ((u_int32_t)ETHER_ADDR(dh->dh_ra)!= MAC_BROADCAST) && ((u_int32_t)ETHER_ADDR(dh->dh_3a) != ((u_int32_t)addr())) && dh->dh_fc.fc_from_ds == 0) {
 		struct hdr_cmn *ch = HDR_CMN(p);
@@ -2899,6 +2946,8 @@ Mac802_11::recvACK(Packet *p)
 	}
 
   //fprintf(stderr,"Create Ack Size: %d\n",sizeof(struct ack_frame_no_fcs));
+
+  rxtx_stats_.rx_no_ack_++;
 
   Packet* p_ack = 0;  //prepare ack
 
