@@ -457,7 +457,17 @@ Mac802_11::transmit_abort(Packet *p, double timeout)
       ch_feedback->txfeedback() = hdr_cmn::YES;
 
       uptarget_->recv(p, (Handler*) 0); // send feedback WIFI_EXTRA_TX
-      ((ClickQueue*)((LLExt*)((Connector*)uptarget_)->target())->ifq())->resume_on_abort();
+
+      /*fprintf(stderr, "Connector: %p\n", (Connector*)uptarget_ );
+      fprintf(stderr, "LLext: %p\n", (LLExt*)((Connector*)uptarget_)->target() );
+      fprintf(stderr, "LL: %p\n", (LL*)((Connector*)uptarget_)->target() );
+      fprintf(stderr, "queue: %p\n", (ClickQueue*)((LLExt*)((Connector*)uptarget_)->target())->ifq());*/
+
+      if ( ((Connector*)uptarget_)->target() == NULL ) { //No cmu trace -> then uptarget i LLc
+        ((ClickQueue*)((LLExt*)uptarget_)->ifq())->resume_on_abort();
+      } else {
+        ((ClickQueue*)((LLExt*)((Connector*)uptarget_)->target())->ifq())->resume_on_abort();
+      }
 
     }
   }
