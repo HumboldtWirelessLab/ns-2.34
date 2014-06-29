@@ -7617,7 +7617,7 @@ else
                         found="$dir"
                         if test "$CC" != "icc" ||
                                 test "$dir" != "/usr/include"; then
-                                V_HEADER_CLICK="-I$dir"
+                                V_HEADER_CLICK="-I$dir -I$dir/.."
                         fi
 			break
 		fi

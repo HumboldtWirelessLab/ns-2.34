@@ -329,7 +329,7 @@ PcapNetwork::phandler_callback(u_char* userdata, const pcap_pkthdr* ph, const u_
 {
 	pcap_singleton_callback *ps = (pcap_singleton_callback*) userdata;	
 
-	Packet *p = Packet::alloc(ph->caplen);
+	Packet *p = Packet::alloc((int)ph->caplen);
 	PcapNetwork *inst = ps->net;
 	
 	if (++(inst->pcnt_) == 1) {
