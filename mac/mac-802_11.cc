@@ -172,19 +172,37 @@ Mac802_11::transmit(Packet *p, double timeout)
 }
 
 //#define PERFORMANCE_COUNTER_DEBUG 1
+//#define DEBUG_PERFORMANCE_COUNTER_BUG 1
+
+char *get_mac_state_string(uint32_t mode) {
+  switch (mode) {
+    case MAC_IDLE: return "MAC_IDLE";
+    case MAC_POLLING: return "MAC_POLLING";
+    case MAC_RECV: return "MAC_RECV";
+    case MAC_SEND: return "MAC_SEND";
+    case MAC_RTS: return "MAC_RTS";
+    case MAC_BCN: return "MAC_BCN";
+    case MAC_CTS: return "MAC_CTS";
+    case MAC_ACK: return "MAC_ACK";
+    case MAC_COLL: return "MAC_COLL";
+    case MAC_MGMT: return "MAC_MGMT";
+  }
+  return "unknown";
+}
 
 inline void
 Mac802_11::setRxState(MacState newState, bool jam)
 {
 #ifdef PERFORMANCE_COUNTER_DEBUG
-  fprintf(stderr, "Node: %d RXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
+  fprintf(stderr, "Node: %d RXState: %d (%s) time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, get_mac_state_string(newState), Scheduler::instance().clock(),
           perf_stats_.cylce_counter,perf_stats_.busy_counter, perf_stats_.rx_counter,perf_stats_.tx_counter );
 #endif
 
   double diff_cycles = Scheduler::instance().clock() - perf_stats_.ts_mode_start;
 
 #ifdef PERFORMANCE_COUNTER_DEBUG
-  fprintf(stderr, "Node: %d Time: %f last: %f diff: %f\n",(u_int32_t)index_, Scheduler::instance().clock() , perf_stats_.ts_mode_start, diff_cycles);
+  fprintf(stderr, "Node: %d Time: %f last: %f diff: %f\n",(u_int32_t)index_, Scheduler::instance().clock() , 
+          perf_stats_.ts_mode_start, diff_cycles);
 #endif
 
   switch (perf_stats_.current_mode) {
@@ -195,29 +213,58 @@ Mac802_11::setRxState(MacState newState, bool jam)
       perf_stats_.busy_counter += diff_cycles;
       break;
     case PERFORMANCE_MODE_TX:
-      //caused by unicast msg (recv ack while transm. data)
-      //fprintf(stderr,"Set to RX while tranmitting");
-      //exit(0);
+      if ( newState != MAC_IDLE ) {
+        //caused by unicast msg (recv ack while transm. data)
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+        fprintf(stderr,"Set to RX while tranmitting\n");
+#endif
+        if ( pktRTS_ != NULL ) {
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+          fprintf(stderr,"send rts\n");
+#endif
+          perf_stats_.tx_counter += diff_cycles;
+          perf_stats_.busy_counter += diff_cycles;
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+          exit(0);
+#endif
+        } else if ( pktCTRL_ != NULL ) {
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+          fprintf(stderr,"send cts\n");
+#endif
+          perf_stats_.tx_counter += diff_cycles;
+          perf_stats_.busy_counter += diff_cycles;
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+          exit(0);
+#endif
+        } else {
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+          fprintf(stderr,"send data\n");
+#endif
+          perf_stats_.tx_counter += diff_cycles;
+          perf_stats_.busy_counter += diff_cycles;
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+          exit(0);
+#endif
+        }
+      }
       break;
     case PERFORMANCE_MODE_BUSY:
       perf_stats_.busy_counter += diff_cycles;
       break;
   }
 
-  if ( perf_stats_.current_mode != PERFORMANCE_MODE_TX ) {
-    perf_stats_.cylce_counter += diff_cycles;
+  perf_stats_.cylce_counter += diff_cycles;
 
-    if ( newState == MAC_IDLE ) {
-      perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
-    } else if ( newState == MAC_COLL ) {
-      perf_stats_.current_mode = PERFORMANCE_MODE_BUSY;
-    } else {
-      perf_stats_.current_mode = PERFORMANCE_MODE_RX;
-    }
-
-    perf_stats_.jam = jam;
-    perf_stats_.ts_mode_start = Scheduler::instance().clock();
+  if ( newState == MAC_IDLE ) {
+    perf_stats_.current_mode = PERFORMANCE_MODE_IDLE;
+  } else if ( newState == MAC_COLL ) {
+    perf_stats_.current_mode = PERFORMANCE_MODE_BUSY;
+  } else {
+    perf_stats_.current_mode = PERFORMANCE_MODE_RX;
   }
+
+  perf_stats_.jam = jam;
+  perf_stats_.ts_mode_start = Scheduler::instance().clock();
 
 	rx_state_ = newState;
 	checkBackoffTimer();
@@ -228,7 +275,7 @@ Mac802_11::setTxState(MacState newState)
 {
 
 #ifdef PERFORMANCE_COUNTER_DEBUG
-  fprintf(stderr, "Node: %d TXState: %d time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, Scheduler::instance().clock(),
+  fprintf(stderr, "Node: %d TXState: %d (%s) time: %2.9f cycle: %f busy: %f rx: %f tx: %f\n", (u_int32_t)index_, newState, get_mac_state_string(newState), Scheduler::instance().clock(),
            perf_stats_.cylce_counter,perf_stats_.busy_counter, perf_stats_.rx_counter,perf_stats_.tx_counter );
 #endif
 
@@ -243,6 +290,17 @@ Mac802_11::setTxState(MacState newState)
     case PERFORMANCE_MODE_IDLE:
       break;
     case PERFORMANCE_MODE_RX:
+      if ( newState != MAC_IDLE ) {
+        //caused by unicast msg (recv ack while transm. data)
+        fprintf(stderr,"Set to TX while receiving\n");
+        if ( pktRTS_ != NULL ) {
+          fprintf(stderr,"cts\n");
+        } else if ( pktCTRL_ != NULL ) {
+          fprintf(stderr,"data?\n");
+        }
+        fprintf(stderr,"Hangup. Please write email including output and all sim-files!!\n");
+        exit(0);
+      }
       if ( ! perf_stats_.jam ) perf_stats_.rx_counter += diff_cycles;
       perf_stats_.busy_counter += diff_cycles;
       break;
@@ -1010,6 +1068,10 @@ Mac802_11::tx_resume()
 	assert(mhSend_.busy() == 0);
 	assert(mhDefer_.busy() == 0);
 
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+  fprintf(stderr, "Node: %d (txresume) State: %d time: %2.9f \n", (u_int32_t)index_, perf_stats_.current_mode, Scheduler::instance().clock());
+#endif
+
 	if(pktCTRL_) {
 		/*
 		 *  Need to send a CTS or ACK.
@@ -1058,6 +1120,10 @@ Mac802_11::tx_resume()
 void
 Mac802_11::rx_resume()
 {
+#ifdef DEBUG_PERFORMANCE_COUNTER_BUG
+  fprintf(stderr, "Node: %d (rxresume) State: %d time: %2.9f \n", (u_int32_t)index_, perf_stats_.current_mode, Scheduler::instance().clock());
+#endif
+
 	assert(pktRx_ == 0);
 	assert(mhRecv_.busy() == 0);
 	setRxState(MAC_IDLE, false);
