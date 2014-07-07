@@ -295,11 +295,14 @@ Mac802_11::setTxState(MacState newState)
         fprintf(stderr,"Set to TX while receiving\n");
         if ( pktRTS_ != NULL ) {
           fprintf(stderr,"cts\n");
+          fprintf(stderr,"Hangup. Please write email including output and all sim-files!!\n");
+          exit(0);
         } else if ( pktCTRL_ != NULL ) {
           fprintf(stderr,"data?\n");
+        } else {
+          fprintf(stderr,"Hangup. Please write email including output and all sim-files!!\n");
+          exit(0);
         }
-        fprintf(stderr,"Hangup. Please write email including output and all sim-files!!\n");
-        exit(0);
       }
       if ( ! perf_stats_.jam ) perf_stats_.rx_counter += diff_cycles;
       perf_stats_.busy_counter += diff_cycles;
