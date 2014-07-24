@@ -66,7 +66,7 @@
 #include "agent.h"
 #include "basetrace.h"
 
-#include <click/../../elements/brn/routing/identity/txcontrol.h>
+#include <click/../../elements/brn/routing/identity/rxtxcontrol.h>
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -131,6 +131,7 @@ Mac802_11::transmit(Packet *p, double timeout)
     rxtx_stats_.tx_no_rts_++;
   } else if ( p == pktCTRL_ ) {
     hdr_cmn* ch = HDR_CMN(p);
+    (void)ch;
     struct ack_frame *af = (struct ack_frame*)p->access(hdr_mac::offset_);
 
     if ( af->af_fc.fc_subtype == MAC_Subtype_ACK ) {
@@ -454,29 +455,56 @@ Mac802_11::handleTXControl(char *txc)
 {
   struct tx_control_header* txch = (struct tx_control_header*)txc;
 
-  if ( txch->operation == TX_ABORT ) {
-    if ( tx_control_state_ == TX_CONTROL_BUSY ) {
-      if ( memcmp(txch->dst_ea, tx_target_mac_, 6) == 0 ) {
+  switch (txch->operation) {
+    case TX_ABORT:
+      if ( tx_control_state_ == TX_CONTROL_BUSY ) {
+        if ( memcmp(txch->dst_ea, tx_target_mac_, 6) == 0 ) {
 
-        tx_control_state_ = TX_CONTROL_ABORT;
+          tx_control_state_ = TX_CONTROL_ABORT;
 
 #if 1
-        transmit_abort(pktTx_, 0);
-        tx_control_state_ = TX_CONTROL_IDLE;
+          transmit_abort(pktTx_, 0);
+          tx_control_state_ = TX_CONTROL_IDLE;
 #endif
+        } else {
+          fprintf(stderr,"wrong mac\n");
+          txch->flags = 2;
+        }
+      } else if ( tx_control_state_ == TX_CONTROL_ABORT ) {
+        fprintf(stderr,"Abort already on the way\n");
+        if ( memcmp(txch->dst_ea, tx_target_mac_, 6) != 0 ) {
+          fprintf(stderr,"Abort for another mac??\n");
+        }
       } else {
-        fprintf(stderr,"wrong mac\n");
-        txch->flags = 2;
+        fprintf(stderr,"is idle\n");
+        txch->flags = 1;
       }
-    } else if ( tx_control_state_ == TX_CONTROL_ABORT ) {
-      fprintf(stderr,"Abort already on the way\n");
-      if ( memcmp(txch->dst_ea, tx_target_mac_, 6) != 0 ) {
-        fprintf(stderr,"Abort for another mac??\n");
+      break;
+    case SET_BACKOFFSCHEME:
+      fprintf(stderr,"Set Bo: %d\n",txch->bo_scheme);
+      if ( bo_scheme_ != NULL ) {
+        delete bo_scheme_;
+        bo_scheme_ = NULL;
       }
-    } else {
-      fprintf(stderr,"is idle\n");
-      txch->flags = 1;
-    }
+
+      switch (txch->bo_scheme) {
+        case MAC_BACKOFF_SCHEME_DEFAULT:
+          break;
+        case MAC_BACKOFF_SCHEME_EXPONENTIAL:
+          bo_scheme_ = new ExponentialBackoff();
+          break;
+        case MAC_BACKOFF_SCHEME_FIBONACCI:
+          bo_scheme_ = new FibonacciBackoff();
+          break;
+      }
+
+      if ( bo_scheme_ == NULL ) {
+        cw_ = phymib_.getCWMin();
+      } else {
+        cw_ = bo_scheme_->reset_cw(phymib_.getCWMin(queue_index_),phymib_.getCWMax(queue_index_));
+      }
+
+      break;
   }
 }
 
@@ -671,7 +699,9 @@ Mac802_11::Mac802_11() :
 	BeaconTxtime_ = 0;
 	infra_mode_ = 0;
 	queue_index_ = 0;
-	cw_ = phymib_.getCWMin();
+  bo_scheme_ = NULL;
+  cw_ = phymib_.getCWMin();
+  retry_number_ = 0;
 	ssrc_ = slrc_ = 0;
 	// Added by Sushmita
         et_ = new EventTrace();
@@ -729,7 +759,6 @@ Mac802_11::Mac802_11() :
   memset(tx_source_mac_,0,6);
 
   memset(&rxtx_stats_, 0, sizeof(struct rx_tx_stats));
-
 }
 
 
@@ -1953,6 +1982,7 @@ Mac802_11::RetransmitDATA()
 
   //if ceh (click) then also check set RTS/CTS flag. if so, then use short retrys
   bool ceh_rtscts_flag_is_set = false;
+  (void)ceh_rtscts_flag_is_set;
 
   click_wifi_extra* ceh = getWifiExtra(pktTx_);
   if (ceh != 0) ceh_rtscts_flag_is_set = ((ceh->flags & WIFI_EXTRA_DO_RTS_CTS) != 0);

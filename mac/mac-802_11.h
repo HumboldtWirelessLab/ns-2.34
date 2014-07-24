@@ -48,6 +48,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <list>
+#include <backoffscheme.h>
 
 #include <click/../../elements/brn/wifi/brnwifi.hh>
 
@@ -582,11 +583,23 @@ private:
 	inline void setTxState(MacState newState);
 
 	inline void inc_cw() {
-		cw_ = (cw_ << 1) + 1;
-		if(cw_ > phymib_.getCWMax(queue_index_))
-			cw_ = phymib_.getCWMax(queue_index_);
+    retry_number_++;
+    if ( bo_scheme_ == NULL ) {
+      cw_ = (cw_ << 1) + 1;
+      if (cw_ > phymib_.getCWMax(queue_index_)) cw_ = phymib_.getCWMax(queue_index_);
+    } else {
+      cw_ = bo_scheme_->inc_cw(phymib_.getCWMin(queue_index_),phymib_.getCWMax(queue_index_));
+    }
+    fprintf(stderr,"CW: %d\n",cw_);
 	}
-	inline void rst_cw() { cw_ = phymib_.getCWMin(queue_index_); }
+	inline void rst_cw() {
+    retry_number_ = 0;
+    if ( bo_scheme_ == NULL ) {
+      cw_ = phymib_.getCWMin(queue_index_);
+    } else {
+      cw_ = bo_scheme_->reset_cw(phymib_.getCWMin(queue_index_),phymib_.getCWMax(queue_index_));
+    }
+  }
 
 	inline double sec(double t) { return(t *= 1.0e-6); }
 	inline u_int16_t usec(double t) {
@@ -662,7 +675,9 @@ private:
 	Packet		*pktPROBEREQ_;	//Probe Request
 	Packet		*pktPROBEREP_;	//Probe Response
 
-	u_int32_t	cw_;		// Contention Window
+  BackoffScheme *bo_scheme_;
+  u_int32_t	cw_;		// Contention Window
+  u_int32_t retry_number_;
 	u_int32_t	queue_index_;
 	u_int32_t	ssrc_;		// STA Short Retry Count
 	u_int32_t	slrc_;		// STA Long Retry Count
