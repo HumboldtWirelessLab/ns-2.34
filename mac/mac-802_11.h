@@ -590,7 +590,7 @@ private:
     } else {
       cw_ = bo_scheme_->inc_cw(phymib_.getCWMin(queue_index_),phymib_.getCWMax(queue_index_));
     }
-    fprintf(stderr,"CW: %d\n",cw_);
+    //fprintf(stderr,"CW: %d\n",cw_);
 	}
 	inline void rst_cw() {
     retry_number_ = 0;
