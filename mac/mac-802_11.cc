@@ -291,9 +291,10 @@ Mac802_11::setTxState(MacState newState)
     case PERFORMANCE_MODE_IDLE:
       break;
     case PERFORMANCE_MODE_RX:
-      if ( newState != MAC_IDLE ) {
-        //caused by unicast msg (recv ack while transm. data)
-        fprintf(stderr,"Set to TX while receiving\n");
+        //"Error" caused by unicast msg (tx ack while rec. data). mac switched directly from rx rts/data to tx cts/ack
+
+      if ( (newState != MAC_IDLE) && (newState != MAC_ACK) && (newState != MAC_CTS) ) {
+        fprintf(stderr,"Set to TX while receiving: current mode: %d new mode: %d\n",perf_stats_.current_mode, newState);
         if ( pktRTS_ != NULL ) {
           fprintf(stderr,"cts\n");
           fprintf(stderr,"Hangup. Please write email including output and all sim-files!!\n");
