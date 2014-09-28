@@ -464,6 +464,7 @@ Mac802_11::handleTXControl(char *txc)
           tx_control_state_ = TX_CONTROL_ABORT;
 
 #if 1
+          //fprintf(stderr,"TXP: %p\n", pktTx_);
           transmit_abort(pktTx_, 0);
           tx_control_state_ = TX_CONTROL_IDLE;
 #endif
@@ -512,6 +513,12 @@ Mac802_11::handleTXControl(char *txc)
 inline void
 Mac802_11::transmit_abort(Packet *p, double timeout)
 {
+  if (!p) {
+    fprintf(stderr,"ERROR: Abort with NULL-Packet. Ignore!\n");
+    fprintf(stdout,"STDOUT:Abort with NULL-Packet. Ignore!\n");
+    return;
+  }
+
   ssrc_ = 0;
   slrc_ = 0;
   rst_cw();
