@@ -483,7 +483,7 @@ Mac802_11::handleTXControl(char *txc)
       }
       break;
     case SET_BACKOFFSCHEME:
-      fprintf(stderr,"Set Bo: %d\n",txch->bo_scheme);
+      //fprintf(stderr,"Set Bo: %d\n",txch->bo_scheme);
       if ( bo_scheme_ != NULL ) {
         delete bo_scheme_;
         bo_scheme_ = NULL;
