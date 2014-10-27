@@ -47,6 +47,14 @@ static const char rcsid[] =
 #include "basetrace.h"
 #include "hdr_qs.h"
 
+#include "extrouter.h" //Robert added
+#include "rawpacket.h"
+
+#include <click/config.h>
+#include <click/confparse.hh>
+#include <clicknet/ip.h>
+#include <clicknet/tcp.h>
+
 int hdr_tcp::offset_;
 
 static class TCPHeaderClass : public PacketHeaderClass {
@@ -655,7 +663,7 @@ void TcpAgent::output(int seqno, int reason)
 	tcph->seqno() = seqno;
 	tcph->ts() = Scheduler::instance().clock();
 	int is_retransmit = (seqno < maxseq_);
- 
+
 	// Mark packet for diagnosis purposes if we are in Quick-Start Phase
 	if (qs_approved_) {
 		hf->qs() = 1;
@@ -761,6 +769,9 @@ void TcpAgent::output(int seqno, int reason)
 		hdr_cmn::access(p)->size() += headersize();
 	}
         hdr_cmn::access(p)->size();
+        //hdr_cmn *ch = HDR_CMN(p);                // Robert added
+        //ch->direction() = hdr_cmn::DOWN;         // Robert added
+        //ch->iface() = ExtRouter::IFID_KERNELTAP; // Robert added
 
 	/* if no outstanding data, be sure to set rtx timer again */
 	if (highest_ack_ == maxseq_)
@@ -770,6 +781,76 @@ void TcpAgent::output(int seqno, int reason)
 
         ++ndatapack_;
         ndatabytes_ += databytes;
+
+  /* TODO: add raw packet */
+    int packetlen = databytes + sizeof(click_ip) + sizeof(click_tcp);
+    p->allocdata(packetlen);
+    hdr_cmn* hcmn = HDR_CMN(p);
+    hcmn->direction() = hdr_cmn::DOWN;
+    hcmn->iface() = ExtRouter::IFID_KERNELTAP;
+    hcmn->ptype() = PT_RAW;
+    hcmn->size() = packetlen;
+
+    // Access the raw header for the new packet:
+    hdr_raw* hdr = hdr_raw::access(p);
+    hdr->subtype = hdr_raw::IP;
+    hdr->ns_type = PT_RAW;
+    unsigned char* pdat = p->accessdata();
+    memset(pdat, 0, packetlen);
+
+    click_ip *ip = (click_ip *)pdat;
+    click_tcp *tcp = (click_tcp *)(ip + 1);
+
+    // set up IP header
+    ip->ip_v = 4;
+    ip->ip_hl = sizeof(click_ip) >> 2;
+    ip->ip_len = htons(packetlen);
+    ip->ip_id = htons(ipseq_);
+    ip->ip_p = IP_PROTO_TCP;
+    ip->ip_src.s_addr = iph->saddr();
+    ip->ip_dst.s_addr = iph->daddr();
+    ip->ip_tos = 0;
+    ip->ip_off = 0;
+    ip->ip_ttl = 255;
+
+    ip->ip_sum = 0;
+    ip->ip_sum = click_in_cksum((unsigned char *)ip, sizeof(click_ip));
+
+    packetlen = ntohs(ip->ip_len) - (ip->ip_hl << 2);
+    // set up TCP header
+    tcp->th_sport = port();
+    tcp->th_dport = dport();
+    tcp->th_seq = htonl(seqno);
+    tcp->th_ack = htonl(tcph->ackno_);//highest_ack_
+#define TH_NS   0x01
+    tcp->th_flags2 = 0;
+    tcp->th_off = 5;
+    tcp->th_flags = tcph->flags();
+#define TH_FIN    0x01
+#define TH_SYN    0x02
+#define TH_RST    0x04
+#define TH_PUSH   0x08
+#define TH_ACK    0x10
+#define TH_URG    0x20
+#define TH_ECE    0x40
+#define TH_CWR    0x80
+    tcp->th_win = window();
+    tcp->th_urp = 0;
+    tcp->th_sum = 0;
+    unsigned csum = click_in_cksum((unsigned char *)tcp, sizeof(click_tcp)+databytes);
+    tcp->th_sum = click_in_cksum_pseudohdr(csum, ip, sizeof(click_tcp)+databytes);
+
+    fprintf(stdout, " [%d.%d>%d.%d] (hlen:%d, dlen:%d, seq:%d, ack:%d, flags:0x%x , salen:%d, reason:0x%x)\n",
+    iph->saddr(), iph->sport(),
+    iph->daddr(), iph->dport(),
+    tcph->hlen(),
+    packetlen,
+    tcph->seqno(),
+    tcph->ackno(),
+    tcph->flags(),
+    tcph->sa_length(),
+    tcph->reason());
+
 	send(p, 0);
 	if (seqno == curseq_ && seqno > maxseq_)
 		idle();  // Tell application I have sent everything so far

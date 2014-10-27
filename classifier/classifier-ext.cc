@@ -73,6 +73,11 @@ void ExtClassifier::recv(Packet* p, Handler* h) {
    */
   struct hdr_cmn* hdr = HDR_CMN(p);
   int extid = hdr->iface();
+  if ((hdr_cmn::DOWN != hdr->direction()) && (hdr_cmn::UP != hdr->direction())) {
+    hdr->direction() = hdr_cmn::DOWN;
+    hdr->iface() = ExtRouter::IFID_KERNELTAP;
+    extid = hdr->iface();
+  }
   if (hdr_cmn::DOWN == hdr->direction()) {
     if (ExtRouter::IFID_KERNELTAP == extid) {
       /*
