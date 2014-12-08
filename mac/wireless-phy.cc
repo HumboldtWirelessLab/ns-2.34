@@ -449,6 +449,9 @@ WirelessPhy::sendUp(Packet *p)
 
 		//fprintf(stderr,"PR: %e\n",Pr);
     //analog to atheros formule -95dBm is lowest sens.
+    /* BRN_MADWIFI affects only the annotation about Noise and RSSI.
+     * RSSI is limit to 60 and Noise is -95dbm*)
+     */
 #define BRN_MADWIFI
 #ifndef BRN_MADWIFI
     double LPr = (10 * log(Pr * 1000));

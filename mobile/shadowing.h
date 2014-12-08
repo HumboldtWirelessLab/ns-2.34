@@ -81,6 +81,7 @@ protected:
 	
 	double pathlossExp_;	// path-loss exponent
 	double std_db_;		// shadowing deviation (dB),
+	double init_std_db_;     // shadowing deviation (dB),
 	double dist0_;	// close-in reference distance
 	int seed_;	// seed for random number generator
 	double madwifi_db_to_mw[MADWIFI_DB2MW_SIZE];
@@ -89,6 +90,7 @@ protected:
 
   double *Pr0_lookup_array;
   double *avg_db_lookup_array;
+  double *init_std_db_array;
 };
 
 #endif

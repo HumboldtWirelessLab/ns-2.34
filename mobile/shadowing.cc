@@ -77,14 +77,16 @@ public:
 
 Shadowing::Shadowing()
 {
+  init_std_db_ = 0.0;
   no_nodes_ = -1;
   no_nodes_shift_ = -1;
 
 	bind("pathlossExp_", &pathlossExp_);
 	bind("std_db_", &std_db_);
+    bind("init_std_db_", &init_std_db_);
 	bind("dist0_", &dist0_);
 	bind("seed_", &seed_);
-  bind("nonodes_", &no_nodes_);
+    bind("nonodes_", &no_nodes_);
 	
 	ranVar = new RNG;
 	ranVar->set_seed(RNG::PREDEF_SEED_SOURCE, seed_);
@@ -110,11 +112,23 @@ Shadowing::Shadowing()
   if ( no_nodes_<= 0 ) {
     Pr0_lookup_array = NULL;
     avg_db_lookup_array = NULL;
+    init_std_db_array = NULL;
   } else {
     Pr0_lookup_array = new double[no_nodes_ * no_nodes_ * POWER_STEPS];
     avg_db_lookup_array = new double[no_nodes_ * no_nodes_ * POWER_STEPS];
-    memset(Pr0_lookup_array,0,no_nodes_ * no_nodes_);
-    memset(avg_db_lookup_array,0,no_nodes_ * no_nodes_);
+    memset(Pr0_lookup_array, 0, no_nodes_ * no_nodes_ * POWER_STEPS * sizeof(double));
+    memset(avg_db_lookup_array, 0, no_nodes_ * no_nodes_ * POWER_STEPS * sizeof(double));
+
+    if ( init_std_db_ != 0.0 ) {
+      init_std_db_array = new double[no_nodes_ * no_nodes_];
+      memset(init_std_db_array, 0, no_nodes_ * no_nodes_ * sizeof(double));
+
+      for( int i = 0; i < (no_nodes_ * no_nodes_); i++) {
+        init_std_db_array[i] = ranVar->normal(0.0, init_std_db_);
+      }
+    } else {
+      init_std_db_array = NULL;
+    }
   }
 }
 
@@ -125,6 +139,7 @@ Shadowing::~Shadowing()
   if ( Pr0_lookup_array != NULL ) {
     delete[] Pr0_lookup_array;
     delete[] avg_db_lookup_array;
+    delete[] init_std_db_array;
   }
 }
 
@@ -144,7 +159,8 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
   int rNodeID = rNode->id_;
   int PrLevel = t->getPrLevel();
 
-  int lookup_index_ = (((tNodeID << no_nodes_shift_) + rNodeID) << POWER_STEPS_SHIFT) + PrLevel;
+  int lookup_index_no_pow = (tNodeID << no_nodes_shift_) + rNodeID;
+  int lookup_index_ = (lookup_index_no_pow << POWER_STEPS_SHIFT) + PrLevel;
 
   bool cached = false;
   bool use_cache = false;
@@ -215,6 +231,9 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 	// get power loss by adding a log-normal random variable (shadowing)
 	// the power loss is relative to that at reference distance dist0_
 	double powerLoss_db = avg_db + ranVar->normal(0.0, std_db_);
+
+    //add init std db
+    if ( init_std_db_array ) powerLoss_db += init_std_db_array[lookup_index_no_pow];
 
 	// calculate the receiving power at dist
 	double Pr = Pr0 * pow(10.0, powerLoss_db/10.0);

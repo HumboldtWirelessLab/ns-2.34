@@ -160,6 +160,8 @@ TwoRayGround::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
     //fprintf(stderr,"Power(db): %d Power: %e old: %e\n",t->getPrLevel(),txpr, t->getTxPr());
   }
 
+  //fprintf(stderr,"f: %d Cross: %f\n",d,crossover_dist);
+
   if(d <= crossover_dist) {
     Pr = Friis(txpr, Gt, Gr, lambda, L, d);
 #if DEBUG > 3
