@@ -239,11 +239,11 @@ int PropRicean::LoadDataFile(const char *filename)
 double
 PropRicean::Pr(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp)
 {
-    fprintf(stderr,"call PR\n");
+    //fprintf(stderr,"call PR\n");
 	double Pr, Pr_Rice=0.0, Pr_tot;
 
 	Pr = TwoRayGround::Pr(tx, rx, ifp);
-    fprintf(stderr,"2Ray-PR: %e\n",Pr);
+    //fprintf(stderr,"2Ray-PR: %e\n",Pr);
 
 	if( initialized) { /* Ricean loss */
 		// double A, inph, quad, Anew;
@@ -312,7 +312,7 @@ PropRicean::Pr(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp)
 
 	
 	//Pr_tot = Pr + Pr_Rice;
-	fprintf(stderr,"Pr: %f Pr_Rice: %f\n",Pr,Pr_Rice);
+	//fprintf(stderr,"Pr: %f Pr_Rice: %f\n",Pr,Pr_Rice);
 	Pr_tot = Pr * Pr_Rice;
 
 	if( trtarget_) {
