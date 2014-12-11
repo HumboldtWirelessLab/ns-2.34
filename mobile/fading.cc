@@ -93,7 +93,10 @@ public:
 
 double FadingNone::compute(PacketStamp* tx, PacketStamp* rx, WirelessPhy* ifp)
 {
-    return 0.0;
+#ifdef FADING_DEBUG
+    fprintf(stderr,"Fading none compute\n");
+#endif
+    return 1.0;
 }
 
 // methods for fading model
@@ -119,7 +122,12 @@ FadingRayleigh::~FadingRayleigh()
 
 double FadingRayleigh::compute(PacketStamp* tx, PacketStamp* rx, WirelessPhy* ifp)
 {
+#ifdef FADING_DEBUG
+  fprintf(stderr,"Fading rayleigh compute\n");
+#endif
   static double VARIANCE = 0.6366197723676; // = 1/sqrt(pi/2)
-  return 5.0 * log10(-2.0 * VARIANCE * log(ranVar->normal(0.0, 1.0))) / Constants.log10;
+  (void)VARIANCE;
+  return 1.0; //TODO
+  //return 5.0 * log10(-2.0 * VARIANCE * log(ranVar->normal(0.0, 1.0))) / Constants.log10;
 }
 // FadingRayleigh

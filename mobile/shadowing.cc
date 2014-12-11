@@ -77,6 +77,8 @@ public:
 
 Shadowing::Shadowing()
 {
+  propagation_ = NULL;
+
   init_std_db_ = 0.0;
   no_nodes_ = -1;
   no_nodes_shift_ = -1;
@@ -146,6 +148,9 @@ Shadowing::~Shadowing()
 
 double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 {
+#ifdef PROB_DEBUG
+    fprintf(stderr,"Pathloss Shadowing Pr\n");
+#endif
 	double L = ifp->getL();		// system loss
 	double lambda = ifp->getLambda();   // wavelength
 
@@ -187,6 +192,7 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
     }
   }
 
+  /* deterministic part can be cached */
   if ( !cached ) {
     t->getNode()->getLoc(&Xt, &Yt, &Zt);
     r->getNode()->getLoc(&Xr, &Yr, &Zr);
@@ -215,7 +221,11 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
     else if ( PrLevel < MADWIFI_DB2MW_SIZE ) txpr = madwifi_db_to_mw[PrLevel];
     else txpr = pow10(((double)PrLevel)/(10.0*2.0)) / 1000.0; //  /2 since we can use 0.5dbm steps for powercontrol
 
-    Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
+    if ( propagation_ == NULL) {
+      Pr0 = Friis(txpr, Gt, Gr, lambda, L, dist0_);
+    } else {
+      Pr0 = propagation_->Pr(t, r, ifp);
+    }
 
     //fprintf(stderr,"%f: %d %e %e Dist: %f (%f,%f,%f) -> (%f,%f,%f) %d -> %d\n", Scheduler::instance().clock(),t->getPrLevel(),txpr, Pr0, dist,Xt, Yt, Zt,Xr, Yr, Zr, tNodeID, rNodeID );
 
@@ -244,6 +254,7 @@ double Shadowing::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 
 int Shadowing::command(int argc, const char* const* argv)
 {
+    TclObject *obj;
 	if (argc == 4) {
 		if (strcmp(argv[1], "seed") == 0) {
 			int s = atoi(argv[3]);
@@ -259,6 +270,18 @@ int Shadowing::command(int argc, const char* const* argv)
 			return(TCL_OK);
 		}
 	}
+	if(argc == 3) {
+	    if (strcmp(argv[1], "propagation") == 0) {
+            if( (obj = TclObject::lookup(argv[2])) == 0) {
+                fprintf(stderr, "Shadowing: Propagation: %s lookup of %s failed\n", argv[1], argv[2]);
+                return TCL_ERROR;
+            }
+            propagation_ = (Propagation *) obj;
+            assert(propagation_);
+
+            return TCL_OK;
+        }
+    }
 	
 	return Propagation::command(argc, argv);
 }

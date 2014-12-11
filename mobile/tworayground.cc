@@ -82,6 +82,9 @@ double TwoRayGround::TwoRay(double Pt, double Gt, double Gr, double ht, double h
 double
 TwoRayGround::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 {
+ #ifdef PROB_DEBUG
+  fprintf(stderr,"Pathloss TwoRayGround Pr\n");
+#endif
   double rX, rY, rZ;		// location of receiver
   double tX, tY, tZ;		// location of transmitter
   double d;				// distance

@@ -90,7 +90,9 @@ ShadowingVis::ShadowingVis()
 
 double ShadowingVis::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 {
-
+#ifdef PROB_DEBUG
+    fprintf(stderr,"Pathloss ShadowingVis Pr\n");
+#endif
 	double Xt, Yt, Zt;		// loc of transmitter
 	double Xr, Yr, Zr;		// loc of receiver
 	double Pr;			// received signal power

@@ -1,5 +1,5 @@
-#ifndef __prop_ricean_h__
-#define __prop_ricean_h__
+#ifndef __fading_ricean_h__
+#define __fading_ricean_h__
 
 /***************************************************************************
  *
@@ -33,15 +33,15 @@
 #include <trace.h>
 #include <packet-stamp.h>
 #include <wireless-phy.h>
-#include <propagation.h>
+#include <fading.h>
 #include <tworayground.h>
 
-class PropRicean : public TwoRayGround {
+class FadingRicean : public Fading {
 public:
-	PropRicean();
-	virtual double Pr(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp);
+	FadingRicean();
+    virtual double compute(PacketStamp *tx, PacketStamp *rx, WirelessPhy *);
 	virtual int command(int argc, const char*const* argv);
-	~PropRicean();
+	~FadingRicean();
 
 protected:
 	int LoadDataFile(const char *filename);
@@ -65,10 +65,6 @@ protected:
 	float *data1;           /* Data values for inphase and quad phase */
 	float *data2;
 	int initialized;
-
-	Trace  *trtarget_;
-
-	void trace(char *fmt, ...);
 };
 
 

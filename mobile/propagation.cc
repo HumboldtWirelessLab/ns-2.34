@@ -101,6 +101,9 @@ Propagation::getDist(double Pr, double Pt, double Gt, double Gr, double hr,
 double
 Propagation::Friis(double Pt, double Gt, double Gr, double lambda, double L, double d)
 {
+#ifdef PROB_DEBUG
+  fprintf(stderr,"Pathloss Friis\n");
+#endif
         /*
          * Friis free space equation:
          *
@@ -127,6 +130,9 @@ public:
 
 double FreeSpace::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 {
+#ifdef PROB_DEBUG
+    fprintf(stderr,"Pathloss FreeSpace Pr\n");
+#endif
 	double L = ifp->getL();		// system loss
 	double lambda = ifp->getLambda();   // wavelength
 

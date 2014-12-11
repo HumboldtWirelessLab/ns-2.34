@@ -117,6 +117,9 @@ Nakagami::~Nakagami()
 
 double Nakagami::Pr(PacketStamp *t, PacketStamp *r, WirelessPhy *ifp)
 {
+#ifdef PROB_DEBUG
+    fprintf(stderr,"Pathloss Nakagami Pr\n");
+#endif
 	double L = ifp->getL();	 	    // system loss
 	double lambda = ifp->getLambda();   // wavelength
 

@@ -39,48 +39,28 @@
 
 #include <wireless-phy.h>
 #include <propagation.h>
-#include <prop_ricean.h>
-
-void
-PropRicean::trace(char* fmt, ...)
-{
-/*
-	va_list ap;
-
-	if(trtarget_) {
-		assert(trtarget_);
-		
-		va_start(ap, fmt);
-		vsprintf(trtarget_->buffer(), fmt, ap);
-		trtarget_->dump();
-		va_end(ap);
-	}
-*/	
-}
+#include <fading_ricean.h>
 
 
-
-static class PropRiceanClass: public TclClass {
+static class FadingRiceanClass: public TclClass {
 public:
-        PropRiceanClass() : TclClass("Propagation/Ricean") {}
+        FadingRiceanClass() : TclClass("Fading/Ricean") {}
         TclObject* create(int, const char*const*) {
-                return (new PropRicean);
+                return (new FadingRicean);
         }
 } class_prop_ricean;
 
 
-PropRicean::PropRicean() : TwoRayGround()
+FadingRicean::FadingRicean()
 {
-
 	N = 0;
 	fm0 = fs = dt = fm = 0.0;
 	K = 0.0; max_velocity = 0.0;
 	data1 = data2 = 0;
 	initialized = 0;
-	trtarget_ = 0;
 }
 
-PropRicean::~PropRicean()
+FadingRicean::~FadingRicean()
 {
 	if(initialized) {
 		delete data1; delete data2;
@@ -88,7 +68,6 @@ PropRicean::~PropRicean()
 		N = 0;
 		fm0 = fs = dt = fm = 0.0;
 		K = 0.0; max_velocity = 0.0;
-		trtarget_ = 0;
 	}
 }
 
@@ -97,9 +76,8 @@ PropRicean::~PropRicean()
    Public Routines
    ====================================================================== */
 int
-PropRicean::command(int argc, const char*const* argv)
+FadingRicean::command(int argc, const char*const* argv)
 {
-	TclObject *obj;
 	int rc;
 
 	if(argc == 3) {
@@ -112,8 +90,7 @@ PropRicean::command(int argc, const char*const* argv)
 		if (strcmp(argv[1], "MaxVelocity") == 0) {
 			if(initialized) {
 				fprintf(stderr, 
-					"Prop_Ricean: Specify \
- MaxVelocity Parameter before LoadFile\n");
+					"Prop_Ricean: Specify MaxVelocity Parameter before LoadFile\n");
 				return TCL_ERROR;
 			}
 			else {
@@ -135,31 +112,13 @@ PropRicean::command(int argc, const char*const* argv)
 
 			return TCL_OK;
 		}
-		if (strcmp(argv[1], "tracetarget") == 0) {
-			
-			if( (obj = TclObject::lookup(argv[2])) == 0) {
-				fprintf(stderr,
-					"Propagation: %s lookup of %s failed\n",
-					argv[1], argv[2]);
-				return TCL_ERROR;
-			}
-			trtarget_ = (Trace *) obj;
-			assert(trtarget_);
-			
-			return TCL_OK;
-		}
-	
-
-
 	}
 
-	return TwoRayGround::command(argc, argv);
+	return Fading::command(argc, argv);
 }
 
-
-
 #define BUF_SZ 4096
-int PropRicean::LoadDataFile(const char *filename)
+int FadingRicean::LoadDataFile(const char *filename)
 {
 	char buf[BUF_SZ];
 	char arg1[BUF_SZ];
@@ -170,7 +129,6 @@ int PropRicean::LoadDataFile(const char *filename)
 	float *tmp1, *tmp2;
 	int rc = TCL_ERROR, ret_val;
 	int k = 0;
-
 
 
 	fdstream = fopen(filename, "r");
@@ -229,21 +187,18 @@ int PropRicean::LoadDataFile(const char *filename)
 //  	for(int m = 0; m < k; m++) 
 //  		printf("%.5e\t%.5e\n", data1[m], data2[m]);
 
-
 	return rc;
 
 }
 
 
-
 double
-PropRicean::Pr(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp)
+FadingRicean::compute(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp)
 {
-    //fprintf(stderr,"call PR\n");
-	double Pr, Pr_Rice=0.0, Pr_tot;
-
-	Pr = TwoRayGround::Pr(tx, rx, ifp);
-    //fprintf(stderr,"2Ray-PR: %e\n",Pr);
+#ifdef FADING_DEBUG
+    fprintf(stderr,"Fading ricean compute\n");
+#endif
+	double Pr_Rice=1.0;
 
 	if( initialized) { /* Ricean loss */
 		// double A, inph, quad, Anew;
@@ -289,14 +244,6 @@ PropRicean::Pr(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp)
 				data2[ind1]*X0*X2*X3*(0.5) +
 				data2[ind2]*X0*X1*X3*(-0.5) +
 				data2[ind3]*X0*X1*X2/6.0;
-			
-
-//  			trace("PPTMP %.9f PRP_IN  %.4f %d %d %d, %.4f %.4f %.4f %.4f   %.5f", 
-//  			      Scheduler::instance().clock(),
-//  			      time_index, ind0, ind1, ind2, 
-//  			      data1[ind0], data1[ind1], data1[ind2],
-//  			      data1[ind3], x1_interp );
-       
 		}
 
 		/* Find the envelope multiplicative factor */
@@ -308,30 +255,9 @@ PropRicean::Pr(PacketStamp *tx, PacketStamp *rx, WirelessPhy *ifp)
 
 		//Pr_Rice = 10.0 * log10(envelope_fac);
 		Pr_Rice = envelope_fac;
-	}
+	} else {
+        fprintf(stderr,"ricean not initialized\n");
+    }
 
-	
-	//Pr_tot = Pr + Pr_Rice;
-	//fprintf(stderr,"Pr: %f Pr_Rice: %f\n",Pr,Pr_Rice);
-	Pr_tot = Pr * Pr_Rice;
-
-	if( trtarget_) {
-		double tX, tY, tZ, rX, rY, rZ;
-		tx->getNode()->getLoc(&tX, &tY, &tZ);
-		rx->getNode()->getLoc(&rX, &rY, &rZ);
-
-		trace("PR %.12f _%d_ _%d_  X  PRP  1  RIC  %.4f %.4f %.4f  -->  %.4f %.4f %.4f  :  %.3f  %.3f  %.3f", 
-		      Scheduler::instance().clock(),
-		      tx->getNode()->address(),
-		      rx->getNode()->address(),
-		      tX, tY, tZ, rX, rY, rZ, 
-		      10.0*log10(Pr_tot), 
-		      10.0*log10(Pr), 
-		      10.0*log10(Pr_Rice) );
-
-	}
-
-	return Pr_tot;
+	return Pr_Rice;
 }
-
-

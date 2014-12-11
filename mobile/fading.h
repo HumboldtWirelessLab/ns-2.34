@@ -40,6 +40,8 @@
 #include <wireless-phy.h>
 #include <packet-stamp.h>
 
+//#define FADING_DEBUG
+
 class PacketStamp;
 class WirelessPhy;
 /*======================================================================

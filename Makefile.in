@@ -249,7 +249,7 @@ OBJ_CC = \
 	mac/mac-802_3.o mac/mac-tdma.o mac/smac.o \
 	mobile/mip.o mobile/mip-reg.o mobile/gridkeeper.o \
 	mobile/propagation.o mobile/tworayground.o \
-	mobile/nakagami.o mobile/prop_ricean.o \
+	mobile/nakagami.o mobile/fading.o mobile/fading_ricean.o \
 	mobile/antenna.o mobile/omni-antenna.o mobile/uni-antenna.o \
 	mobile/pattern-antenna.o \
 	mobile/shadowing.o mobile/shadowing-vis.o mobile/dumb-agent.o \

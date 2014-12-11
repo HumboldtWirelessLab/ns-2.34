@@ -78,6 +78,7 @@ public:
 
 protected:
 	RNG *ranVar;	// random number generator for normal distribution
+	Propagation *propagation_;
 	
 	double pathlossExp_;	// path-loss exponent
 	double std_db_;		// shadowing deviation (dB),

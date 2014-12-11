@@ -176,6 +176,7 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
 	node_ = 0;
 	ant_ = 0;
 	propagation_ = 0;
+    fading_ = 0;
 	modulation_ = 0;
 
 	// Assume AT&T's Wavelan PCMCIA card -- Chalermek
@@ -209,7 +210,9 @@ WirelessPhy::command(int argc, const char*const* argv)
 {
 	TclObject *obj; 
 	Tcl& tcl = Tcl::instance();
-
+#ifdef WIFI_PHY_DEBUG
+    fprintf(stderr,"argc: %d -> %s\n", argc,argv[1] );
+#endif
 	if (argc==2) {
 		if (strcasecmp(argv[1], "NodeOn") == 0) {
 			node_on();
@@ -258,14 +261,21 @@ WirelessPhy::command(int argc, const char*const* argv)
 		} else if (strcasecmp(argv[1], "setTransitionTime") == 0) {
 			T_transition_ = atof(argv[2]);
 			return TCL_OK;
-		}else if( (obj = TclObject::lookup(argv[2])) == 0) {
+		} else if( (obj = TclObject::lookup(argv[2])) == 0) {
 			fprintf(stderr,"WirelessPhy: %s lookup of %s failed\n", 
 				argv[1], argv[2]);
 			return TCL_ERROR;
-		}else if (strcmp(argv[1], "propagation") == 0) {
+		} else if (strcmp(argv[1], "propagation") == 0) {
 			assert(propagation_ == 0);
 			propagation_ = (Propagation*) obj;
 			return TCL_OK;
+        } else if (strcmp(argv[1], "fading") == 0) {
+#ifdef WIFI_PHY_DEBUG
+            fprintf(stderr,"fading %d\n", argc);
+#endif
+            assert(fading_ == 0);
+            fading_ = (Fading*) obj;
+            return TCL_OK;
 		} else if (strcasecmp(argv[1], "antenna") == 0) {
 			ant_ = (Antenna*) obj;
 			return TCL_OK;
@@ -418,6 +428,7 @@ WirelessPhy::sendUp(Packet *p)
 
 	PacketStamp s;
 	double Pr;
+    double FadingPr = 1.0;
 	int pkt_recvd = 0;
 
 	Pr = p->txinfo_.getTxPr();
@@ -446,8 +457,15 @@ WirelessPhy::sendUp(Packet *p)
 	if(propagation_) {
 		s.stamp((MobileNode*)node(), ant_, 0, lambda_);
 		Pr = propagation_->Pr(&p->txinfo_, &s, this);
+        if (fading_) {
+          FadingPr = fading_->compute(&p->txinfo_, &s, this);
+        }
+#ifdef WIFI_PHY_DEBUG
+        fprintf(stderr,"PR: %e Fading: %e Result: %e\n",Pr,FadingPr,(Pr*FadingPr));
+#endif
 
-		//fprintf(stderr,"PR: %e\n",Pr);
+        Pr = Pr*FadingPr;
+
     //analog to atheros formule -95dBm is lowest sens.
     /* BRN_MADWIFI affects only the annotation about Noise and RSSI.
      * RSSI is limit to 60 and Noise is -95dbm*)

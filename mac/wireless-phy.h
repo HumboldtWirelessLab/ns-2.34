@@ -48,14 +48,18 @@ typedef std::vector< double > RateList;
 typedef std::vector< double > RXList;
 
 #include "propagation.h"
+#include "fading.h"
 #include "modulation.h"
 #include "omni-antenna.h"
 #include "phy.h"
 #include "mobilenode.h"
 #include "timer-handler.h"
 
+//#define WIFI_PHY_DEBUG
+
 class Phy;
 class Propagation;
+class Fading;
 class WirelessPhy;
 
 class Sleep_Timer : public TimerHandler {
@@ -137,6 +141,8 @@ protected:
   
 	Antenna *ant_;
 	Propagation *propagation_;	// Propagation Model
+	Fading *fading_;
+
 	Modulation *modulation_;	// Modulation Schem
 
 	// Why phy has a node_ and this guy has it all over again??

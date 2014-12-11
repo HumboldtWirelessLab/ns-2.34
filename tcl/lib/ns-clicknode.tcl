@@ -84,9 +84,9 @@ Node/MobileNode/ClickNode instproc route-notify { module } {
 # stuff got removed.
 #
 Node/MobileNode/ClickNode instproc add-interface { channel pmodel lltype mactype \
-					    qtype qlen iftype anttype topo} {
+					    qtype qlen iftype anttype topo fadingmodel} {
 
-    $self instvar nifs_ netif_ mac_ ifq_ ll_
+    $self instvar nifs_ netif_ mac_ ifq_ ll_ fading_
     set ns [Simulator instance]
     set t $nifs_
     incr nifs_
@@ -154,6 +154,9 @@ Node/MobileNode/ClickNode instproc add-interface { channel pmodel lltype mactype
     $netif propagation $pmodel	;# Propagation Model
     $netif node $self		;# Bind node <---> interface
     $netif antenna $ant_($t)
+    if {$fadingmodel != ""} {
+		  $netif fading $fadingmodel
+	  }
     #
     # Physical Channel
     #
