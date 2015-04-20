@@ -129,6 +129,10 @@ WirelessPhy::WirelessPhy() : Phy(), sleep_timer_(this), status_(IDLE)
   } else {
     Pt_dbm_ = (10 * log10(Pt_));
   }
+
+  Max_Pt_ = Pt_;
+  Max_Pt_dbm_ = Pt_dbm_;
+
   Pt_dbm_ *= 2; //double Power to enable 0.5 dbm steps
 
 	bind("freq_", &freq_);
@@ -797,4 +801,29 @@ void WirelessPhy::UpdateSleepEnergy()
 	}	
 	
 	sleep_timer_.resched(10.0);
+}
+
+void WirelessPhy::setPt(double pt)
+{
+  if ( pt > Max_Pt_ ) pt = Max_Pt_;
+
+  Pt_ = pt;
+  Pt_dbm_ = 2 * (10 * log10(Pt_)); //double (2*) for madwifi 0.5dbm steps
+}
+
+void WirelessPhy::setPtdbm(double pt)
+{
+  if ( (pt) > Max_Pt_dbm_ ) pt = Max_Pt_dbm_; //double (2*) for madwifi 0.5dbm steps
+
+  Pt_dbm_ = 2 * pt;   //double (2*) for madwifi 0.5dbm steps
+  Pt_ = pow10(pt/10) / 1000; //dbm to Watt ( /1000)
+}
+
+void WirelessPhy::getRates(int *rates)
+{
+  if ( rates[0] >= RateCount_ ) {
+    for( int i = 0; i < RateCount_; i++) rates[RateCount_-i] = (ratelist[i]/500000);
+  }
+
+  rates[0] = RateCount_;
 }

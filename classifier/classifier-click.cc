@@ -462,10 +462,18 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
 	  int ifid = va_arg(val, int);
 	  int channelid = va_arg(val, int);
 	  char work[128];
-	  //fprintf(stderr,"SwitchChannel %i %i %i\n", cc->GetNodeAddr(), ifid, channelid);
-	  sprintf(work, "SwitchChannel %i %i %i", cc->GetNodeAddr(), ifid, channelid);
-	  tcl.eval(work);
-	  r = 0;
+      if ( channelid != -1 ) {
+        //fprintf(stderr,"SwitchChannel %i %i %i\n", cc->GetNodeAddr(), ifid, channelid);
+        sprintf(work, "SwitchChannel %i %i %i", cc->GetNodeAddr(), ifid, channelid);
+        tcl.eval(work);
+        r = 0;
+      } else {
+        NsObject* target = cc->slot(ExtRouter::IFID_FIRSTIF);
+        LLExt* llext = (LLExt*) target;
+        fprintf(stderr,"Channel ID: %d Name: %s\n",((WirelessPhy*)(llext->getMac()->getPhy()))->channel()->index(),
+                                                   ((WirelessPhy*)(llext->getMac()->getPhy()))->channel()->name());
+        r = ((WirelessPhy*)(llext->getMac()->getPhy()))->channel()->index();
+      }
 	  break;
       }
       case SIMCLICK_GET_RANDOM_INT: {
@@ -513,6 +521,21 @@ int simclick_sim_command(simclick_node_t *simnode, int cmd, ...)
       case SIMCLICK_WIFI_GET_RXTXSTATS: {
         void *rxtxstats = va_arg(val, void *);
         cc->GetRxTxStats(rxtxstats);
+        break;
+      }
+      case SIMCLICK_WIFI_GET_TXPOWER: {
+        int *txpower = va_arg(val, int *);
+        *txpower = cc->GetTxPower();
+        break;
+      }
+      case SIMCLICK_WIFI_SET_TXPOWER: {
+        int *txpower = va_arg(val, int *);
+        cc->SetTxPower(*txpower);
+        break;
+      }
+      case SIMCLICK_WIFI_GET_RATES: {
+        int *rates = va_arg(val, int *);
+        cc->GetRates(rates);
         break;
       }
       default:
@@ -952,6 +975,46 @@ ClickClassifier::GetRxTxStats(void *rxtxstats) {
   if (target) {
     LLExt* llext = (LLExt*) target;
     ((Mac802_11*)(llext->getMac()))->getRxTxStats(rxtxstats);
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+int
+ClickClassifier::GetTxPower() {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    //fprintf(stderr,"p: %e\n",(((WirelessPhy*)(llext->getMac()->getPhy()))->getPtdbm()));
+    return (((WirelessPhy*)(llext->getMac()->getPhy()))->getPtdbm());
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+int
+ClickClassifier::SetTxPower(int power) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((WirelessPhy*)(llext->getMac()->getPhy()))->setPtdbm(power);
+  } else {
+    fprintf(stderr,"ERROR: network interface does not exist\n");
+  }
+
+  return 0;
+}
+
+int
+ClickClassifier::GetRates(int *rates) {
+  NsObject* target = slot_[ExtRouter::IFID_FIRSTIF];
+  if (target) {
+    LLExt* llext = (LLExt*) target;
+    ((WirelessPhy*)(llext->getMac()->getPhy()))->getRates(rates);
   } else {
     fprintf(stderr,"ERROR: network interface does not exist\n");
   }

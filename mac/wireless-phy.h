@@ -95,7 +95,10 @@ public:
 
         /* -NEW- */
         inline double getAntennaZ() { return ant_->getZ(); }
+        void setPt(double pt);
         inline double getPt() { return Pt_; }
+        void setPtdbm(double pt);
+        inline double getPtdbm() { return (Pt_dbm_/2); }
         inline double getRXThresh() { return RXThresh_; }
         inline double getCSThresh() { return CSThresh_; }
         inline double getCPThresh() { return CPThresh_; }
@@ -104,6 +107,8 @@ public:
         inline void setRXThresh(double rx) { RXThresh_ = rx; }
         inline void setCSThresh(double cs) { CSThresh_ = cs; }
         inline void setCPThresh(double cp) { CPThresh_ = cp; }
+
+        void getRates(int *rates);
         /* End -NEW- */
 
 	void node_sleep();
@@ -115,6 +120,8 @@ public:
 protected:
 	double Pt_;		// transmitted signal power (W)
 	double Pt_dbm_;   // transmitted signal power (dbm)
+	double Max_Pt_;     // transmitted signal power (W)
+    double Max_Pt_dbm_;   // transmitted signal power (dbm)
 	double Pt_consume_;	// power consumption for transmission (W)
 	double Pr_consume_;	// power consumption for reception (W)
 	double P_idle_;         // idle power consumption (W)
