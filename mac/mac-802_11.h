@@ -79,6 +79,9 @@ class EventTrace;
 #define MAC_Subtype_Auth	0x0C
 #define MAC_Subtype_ProbeReq	0x04
 #define MAC_Subtype_ProbeRep	0x05
+#define MAC_Subtype_ProbeRep    0x05
+#define MAC_Subtype_QOS         0x80
+#define MAC_Subtype_QOS_NULL    0xc0
 
 #define MAC_Max_HW_Queue	4
 
@@ -224,6 +227,19 @@ struct hdr_mac802_11 {
 	u_char			dh_4a[ETHER_ADDR_LEN];
 	u_int16_t		dh_scontrol;
 	u_char			dh_body[1]; // size of 1 for ANSI compatibility
+};
+
+// XXX This header does not have its header access function because it shares
+// the same header space with hdr_mac.
+struct hdr_mac802_11_qos {
+    struct frame_control    dh_fc;
+    u_int16_t       dh_duration;
+    u_char          dh_ra[ETHER_ADDR_LEN];
+    u_char          dh_ta[ETHER_ADDR_LEN];
+    u_char          dh_3a[ETHER_ADDR_LEN];
+    u_int16_t       dh_scontrol;
+    u_int16_t       dh_qos;
+    u_char          dh_body[1]; // size of 1 for ANSI compatibility
 };
 
 struct client_table {

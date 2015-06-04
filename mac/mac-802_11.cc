@@ -430,6 +430,24 @@ getWifi(Packet* p)
   return 0;
 }
 
+bool
+qos_no_ack(Packet *p)
+{
+  click_wifi *wh = getWifi(p);
+
+  bool has_qos = ((wh->i_fc[0] & MAC_Subtype_QOS) != 0);
+  bool no_ack = false;
+  if ( has_qos ) {
+    //fprintf(stderr,"has qos\n");
+    struct Click::wifi_qos_field *qos = (struct Click::wifi_qos_field*)&(wh[1]);
+    no_ack = ((qos->qos & NO_ACK) != 0);
+    /*if ( no_ack ) {
+      fprintf(stderr,"Found no ack\n");
+    }*/
+  }
+  return no_ack;
+}
+
 inline bool is_jammer_msg(Packet *p)
 {
   click_wifi_extra* ceh = getWifiExtra(p);
@@ -1558,7 +1576,7 @@ Mac802_11::check_pktTx()
 			return 0;
 		}
 		setTxState(MAC_SEND);
-		if((u_int32_t)ETHER_ADDR(mh->dh_ra) != MAC_BROADCAST)
+		if(((u_int32_t)ETHER_ADDR(mh->dh_ra) != MAC_BROADCAST) && (!qos_no_ack(pktTx_)))
                         timeout = txtime(pktTx_)
                                 + DSSS_MaxPropagationDelay              // XXX
                                + phymib_.getSIFS()
@@ -1760,6 +1778,7 @@ Mac802_11::sendDATA(Packet *p)
 {
 	hdr_cmn* ch = HDR_CMN(p);
 	struct hdr_mac802_11* dh = HDR_MAC802_11(p);
+
 	u_int32_t dst = ETHER_ADDR(dh->dh_ra);
 	assert(pktTx_ == 0);
 
@@ -1793,7 +1812,7 @@ Mac802_11::sendDATA(Packet *p)
  	ch->txtime() = txtime(ch->size(), dataRate_);
 	p->txinfo_.setPrLevel(0);
 
-	if(dst != MAC_BROADCAST) {
+	if((dst != MAC_BROADCAST) && (!qos_no_ack(p))) {
 		/* store data tx time for unicast packets */
 		ch->txtime() = txtime(ch->size(), dataRate_);
 		p->txinfo_.setRate(dataRate_);
@@ -1953,7 +1972,7 @@ Mac802_11::RetransmitDATA()
 	 *  Broadcast packets don't get ACKed and therefore
 	 *  are never retransmitted.
 	 */
-	if((u_int32_t)ETHER_ADDR(mh->dh_ra) == MAC_BROADCAST) {
+	if(((u_int32_t)ETHER_ADDR(mh->dh_ra) == MAC_BROADCAST) || (qos_no_ack(pktTx_))) {
     if ( macmib_.getTXFeedback() == 1 ) {
       Packet* p_feedback = 0; //prepare feedback WIFI_EXTRA_TX
       click_wifi_extra* ceh = getWifiExtra(pktTx_);
@@ -2819,7 +2838,7 @@ Mac802_11::recvDATA(Packet *p)
 	 *  If we sent a CTS, clean up...
 	 */
 
-	if(dst != MAC_BROADCAST && dst == (u_int32_t)index_ ) {
+	if((dst != MAC_BROADCAST) && (dst == (u_int32_t)index_) && (!qos_no_ack(p))) {
 		//if(size >= macmib_.getRTSThreshold()) {
 		if ( 	(!rceh && size >= macmib_.getRTSThreshold()) ||
 			 	( rceh && pktCTRL_)){
