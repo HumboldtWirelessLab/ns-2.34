@@ -525,7 +525,7 @@ WirelessPhy::sendUp(Packet *p)
 #endif
 		
     if ((RateCount_ > 0 ) && (i < 0)) {
-      fprintf(stderr,"Rate not found set thr higher than pr, so its drop\n");
+      fprintf(stderr,"Rate (%e) not found set thr higher than pr, so its drop\n",p->txinfo_.getRate());
       RXThr = Pr + 1.0;
     }
 
