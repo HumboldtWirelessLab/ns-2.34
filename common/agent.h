@@ -68,6 +68,12 @@ struct OldValue {
 	struct OldValue *next_;
 };
 
+struct click_tcp_payload {
+  Packet *_tcp_packet;
+  int _packet_ref_counter;
+  int _direction;
+}
+
 class EventTrace;
 class Agent : public Connector {
  public:

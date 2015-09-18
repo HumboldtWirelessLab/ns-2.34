@@ -227,7 +227,7 @@ TcpSink::delay_bind_dispatch(const char *varName, const char *localName, TclObje
         return Agent::delay_bind_dispatch(varName, localName, tracer);
 }
 
-void Acker::append_ack(hdr_cmn*, hdr_tcp*, int) const
+void Acker::append_ack(hdr_cmn *, hdr_tcp*, int) const
 {
 }
 
@@ -347,8 +347,10 @@ void TcpSink::ack(Packet* opkt)
 	// send it
 }
 
-void TcpSink::add_to_ack(Packet*)
+void TcpSink::add_to_ack(Packet *p)
 {
+  hdr_cmn *hcmn = hdr_cmn::access(p);
+  hcmn->ptype() = PT_ACK;
 	return;
 }
 

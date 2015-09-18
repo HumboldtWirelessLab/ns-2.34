@@ -527,7 +527,7 @@ Agent::toraw(Packet* p) {
 		click_tcp *tcp = (click_tcp *) (ip + 1);
 		tcp->th_sport = htons(srcport_);
 		tcp->th_dport = htons(destport_);
-		tcp->th_seq = htonl(htcp->seqno_);
+		tcp->th_seq = htonl(htcp->seqno_ - 1);
 		tcp->th_ack = htonl(htcp->ackno_);
 		tcp->th_flags2 = 0;
 		tcp->th_off = sizeof(click_tcp) >> 2;
@@ -537,6 +537,12 @@ Agent::toraw(Packet* p) {
 		tcp->th_win = 0; /* XXX */
 		tcp->th_urp = 0;
 		tcp->th_sum = 0;
+
+        struct click_tcp_payload *c_tcp  = (struct click_tcp_payload *)&tcp[1];
+        c_tcp->_tcp_packet = p;
+        c_tcp->_packet_ref_counter = 1;
+        c_tcp->_direction = hdr_cmn::DOWN;
+
 		uint16_t len = packetlen - sizeof(click_ip);
 		unsigned csum = click_in_cksum((unsigned char *)tcp, len);
 		tcp->th_sum = click_in_cksum_pseudohdr(csum, ip, len);
