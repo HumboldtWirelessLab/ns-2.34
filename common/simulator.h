@@ -61,7 +61,9 @@ class Simulator : public TclObject {
 public:
 	static Simulator& instance() { return (*instance_); }
       Simulator() : nodelist_(NULL), rtobject_(NULL), nn_(0), \
-	size_(0) {}
+	size_(0) {
+		memset(macType_,0,sizeof(macType_));
+	}
       ~Simulator() {
 	    delete []nodelist_; 
       }

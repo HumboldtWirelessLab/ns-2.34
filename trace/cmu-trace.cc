@@ -163,10 +163,11 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
 {
 	struct hdr_cmn *ch = HDR_CMN(p);
 	struct hdr_ip *ih = HDR_IP(p);
-	struct hdr_mac802_11 *mh;
-	struct hdr_smac *sh;
+	struct hdr_mac802_11 *mh = NULL;
+	struct hdr_smac *sh = NULL;
 	char mactype[SMALL_LEN];
 
+	memset(mactype,0,sizeof(mactype));
 	strcpy(mactype, Simulator::instance().macType());
 	if (strcmp (mactype, "Mac/SMAC") == 0)
 		sh = HDR_SMAC(p);
@@ -289,6 +290,7 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
                 ch->uid(),                      // identifier for this event
 		
 		((ch->ptype() == PT_MAC) ? (
+		  (mh == NULL) ? "UNKN" :
 		  (mh->dh_fc.fc_type == MAC_Type_Control) ? (
 		  (mh->dh_fc.fc_subtype == MAC_Subtype_RTS) ? "RTS"  :
 		  (mh->dh_fc.fc_subtype == MAC_Subtype_CTS) ? "CTS"  :
@@ -315,6 +317,7 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
 		  "UNKN") :
 		  "UNKN") :
 		 (ch->ptype() == PT_SMAC) ? (
+		  (sh == NULL) ? "UNKN" :
 		  (sh->type == RTS_PKT) ? "RTS" :
 		  (sh->type == CTS_PKT) ? "CTS" :
 		  (sh->type == ACK_PKT) ? "ACK" :

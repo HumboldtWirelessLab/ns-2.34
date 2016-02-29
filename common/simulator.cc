@@ -59,11 +59,11 @@ public:
 	}
 } simulator_class;
 
-Simulator* Simulator::instance_;
+Simulator* Simulator::instance_ = NULL;
 
 int Simulator::command(int argc, const char*const* argv) {
 	Tcl& tcl = Tcl::instance();
-	if ((instance_ == 0) || (instance_ != this))
+	if ((instance_ == NULL) || (instance_ != this))
 		instance_ = this;
 	if (argc == 3) {
 		if (strcmp(argv[1], "populate-flat-classifiers") == 0) {
