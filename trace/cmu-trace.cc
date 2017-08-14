@@ -272,9 +272,9 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
 #endif
 	sprintf(pt_->buffer() + offset,
 #ifdef LOG_POSITION
-		"%c %.9f %d %6.2f %6.2f %d %3s %4s %d %s %d ",
+		"%c %.9f %d %6.2f %6.2f %d %3s %4s %d %s %d %f",
 #else
-		"%c %.9f %d %d %3s %4s %d %s %d",
+		"%c %.9f %d %d %3s %4s %d %s %d %f",
 #endif
 		op,
 		Scheduler::instance().clock(),
@@ -323,8 +323,9 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
 		  (sh->type == ACK_PKT) ? "ACK" :
 		  (sh->type == SYNC_PKT) ? "SYNC" :
 		  "UNKN") : 
-		 packet_info.name(ch->ptype())),
-		ch->size());
+		  ptype_to_string(p)), //packet_info.name(ch->ptype())),
+		ch->size(),
+		ch->txtime());
 	
 	offset = strlen(pt_->buffer());
 
@@ -355,6 +356,46 @@ CMUTrace::format_mac_common(Packet *p, const char *why, int offset)
 				thisnode->energy_model()->er());				
 		}
         }
+}
+
+const char *
+CMUTrace::ptype_to_string(Packet *p)
+{
+	struct hdr_cmn *ch = HDR_CMN(p);
+	if ( ch->ptype() != PT_RAW ) {
+		return packet_info.name(ch->ptype());
+	}
+	
+	unsigned char *p_data = p->accessdata();
+	struct ack_frame_no_fcs *af = (struct ack_frame_no_fcs*)&(p_data[sizeof(click_wifi_extra)]);
+	
+	int type = af->type & 0x0c;
+	int subtype = af->type & 0xf0;
+	int dir = af->ctrl & 0x03;
+
+	printf("%d %d %d\n", type, subtype, dir);
+	switch (type) {
+		case 0x04: //ctl
+				switch (subtype) {
+					case 0xb0: return "RTS";
+					case 0xc0: return "CTS";
+					case 0xd0: return "ACK";
+					default: return "UNK";
+				}
+				break;
+		case 0x08: //data
+				switch (subtype) {
+					case 0x00: return "NODS";
+					case 0x01: return "TODS";
+					case 0x02: return "FRDS";
+					case 0x03: return "DSDS";
+				}
+				break;
+		default:
+				return "UNK";
+	}
+
+	return "unknown";
 }
 
 void

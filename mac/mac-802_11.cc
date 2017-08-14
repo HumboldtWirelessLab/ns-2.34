@@ -1777,6 +1777,7 @@ void
 Mac802_11::sendDATA(Packet *p)
 {
 	hdr_cmn* ch = HDR_CMN(p);
+	hdr_raw* rhdr = hdr_raw::access(p);
 	struct hdr_mac802_11* dh = HDR_MAC802_11(p);
 
 	u_int32_t dst = ETHER_ADDR(dh->dh_ra);
@@ -1786,7 +1787,13 @@ Mac802_11::sendDATA(Packet *p)
 	 * Update the MAC header
 	 */
 	click_wifi_extra* ceh = getWifiExtra(p);
-	ch->size() += phymib_.getHdrLen11();
+	if (rhdr->subtype == hdr_raw::MADWIFI) {
+		printf("SendData: %d %d\n",ch->size(),phymib_.getHdrLen11_click(true));
+		ch->size() += phymib_.getHdrLen11_click(true);
+	} else {
+		printf("SendData: %d %d\n",ch->size(),phymib_.getHdrLen11());
+		ch->size() += phymib_.getHdrLen11();
+	}
 
 	dh->dh_fc.fc_protocol_version = MAC_ProtocolVersion;
 	dh->dh_fc.fc_type       = MAC_Type_Data;
@@ -1808,6 +1815,7 @@ Mac802_11::sendDATA(Packet *p)
 	dh->dh_fc.fc_wep        = 0;
 	dh->dh_fc.fc_order      = 0;
 
+	printf("SendDataTxSize: %d\n",ch->size());
 	/* store data tx time */
  	ch->txtime() = txtime(ch->size(), dataRate_);
 	p->txinfo_.setPrLevel(0);
@@ -2666,6 +2674,10 @@ Mac802_11::recvRTS(Packet *p)
       struct hdr_cmn* ch_rts = HDR_CMN(p_rts);
       ch_rts->direction() = hdr_cmn::UP;
       ch_rts->txfeedback() = hdr_cmn::NO;
+      ch_rts->ptype() = PT_RAW;
+      hdr_raw* rhdr = hdr_raw::access(p_rts);	
+      rhdr->ns_type = PT_RAW;
+      rhdr->subtype = hdr_raw::MADWIFI;
 
       uptarget_->recv(p_rts, (Handler*) 0); // promisc
 
@@ -2774,6 +2786,10 @@ Mac802_11::recvCTS(Packet *p)
       struct hdr_cmn* ch_cts = HDR_CMN(p_cts);
       ch_cts->direction() = hdr_cmn::UP;
       ch_cts->txfeedback() = hdr_cmn::NO;
+      ch_cts->ptype() = PT_RAW;
+      hdr_raw* rhdr = hdr_raw::access(p_cts);	
+      rhdr->ns_type = PT_RAW;
+      rhdr->subtype = hdr_raw::MADWIFI;
 
       uptarget_->recv(p_cts, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
@@ -2831,7 +2847,9 @@ Mac802_11::recvDATA(Packet *p)
 	 * off the mac header
 	 */
 	click_wifi_extra* rceh = getWifiExtra(p);
-	ch->size() -= phymib_.getHdrLen11();
+	printf("hdr11: %d %d %lu\n", phymib_.getPLCPhdrLen(), offsetof(struct hdr_mac802_11, dh_body[0]), ETHER_FCS_LEN);
+	printf("Size: %d -> Size_madwifi: %ld\n",phymib_.getHdrLen11(), sizeof(click_wifi_extra));
+	//ch->size() -= phymib_.getHdrLen11();
 	ch->num_forwards() += 1;
 
 	/*
@@ -3033,7 +3051,7 @@ Mac802_11::recvACK(Packet *p)
         memcpy(&(ack_data[sizeof(click_wifi_extra)]),af_recv_ack,sizeof(struct ack_frame_no_fcs));
         af_recv_ack = (struct ack_frame_no_fcs*)&(ack_data[sizeof(click_wifi_extra)]);
         af_recv_ack->type = 0xd4;
-        af_recv_ack->ctrl = 0;
+        af_recv_ack->ctrl = 1;
         af_recv_ack->af_ra[5] = af_recv_ack->af_ra[3];
         af_recv_ack->af_ra[4] = af_recv_ack->af_ra[2];
         af_recv_ack->af_ra[3] = af_recv_ack->af_ra[1];
@@ -3047,14 +3065,21 @@ Mac802_11::recvACK(Packet *p)
         struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
         ch_ack->direction() = hdr_cmn::UP;
         ch_ack->txfeedback() = hdr_cmn::NO;
+        ch_ack->ptype() = PT_RAW;
+        hdr_raw* rhdr = hdr_raw::access(p_ack);	
+        rhdr->ns_type = PT_RAW;
+        rhdr->subtype = hdr_raw::MADWIFI;
+        struct hdr_cmn* ch_p = HDR_CMN(p);
+        ch_p->size() = 38; // TODO: sizeof(struct ack_frame_no_fcs); ?
+        ch_ack->size() = ch_p->size();
+        ch_ack->txtime() = ch_p->txtime();
 
         uptarget_->recv(p_ack, (Handler*) 0); // send feedback WIFI_EXTRA_TX
 
-        Packet::free(p);
       }
-
-      return;
     }
+    Packet::free(p);
+    return;
   } else if (tx_state_ != MAC_SEND) {
 		//fprintf(stderr,"No TXPacket. Discard Ack\n");
 		discard(p, DROP_MAC_INVALID_STATE);
@@ -3070,11 +3095,11 @@ Mac802_11::recvACK(Packet *p)
 		p2 = pktTx_->copy();
 		click_wifi_extra* ceh2 = getWifiExtra(p2);
 		ceh2->flags |= WIFI_EXTRA_TX;
-    ceh2->flags |= Click::WIFI_EXTRA_EXT_RETRY_INFO;
+		ceh2->flags |= Click::WIFI_EXTRA_EXT_RETRY_INFO;
 		ceh2->silence = -95;
 		ceh2->rssi = p->txinfo_.RxPrMadwifi;
-    ceh2->virt_col = (rts_tx_count << 4) + tx_count;
-    //fprintf(stderr, "Sum long: %d short: %d retries: %d (%d/%d/%d)\n",slrc_, ssrc_, ceh2->retries, rts_tx_count, tx_count, ceh2->virt_col);
+		ceh2->virt_col = (rts_tx_count << 4) + tx_count;
+		//fprintf(stderr, "Sum long: %d short: %d retries: %d (%d/%d/%d)\n",slrc_, ssrc_, ceh2->retries, rts_tx_count, tx_count, ceh2->virt_col);
 
 		struct hdr_cmn* ch2 = HDR_CMN(p2);
 		ch2->direction() = hdr_cmn::UP;
@@ -3122,6 +3147,11 @@ Mac802_11::recvACK(Packet *p)
       struct hdr_cmn* ch_ack = HDR_CMN(p_ack);
       ch_ack->direction() = hdr_cmn::UP;
       ch_ack->txfeedback() = hdr_cmn::NO;
+      //ch_ack->size() = 38; // TODO: sizeof(struct ack_frame_no_fcs); ?
+
+      struct hdr_cmn* ch_p = HDR_CMN(p);
+      ch_ack->size() = ch_p->size();
+      ch_ack->txtime() = ch_p->txtime();
     }
   }
 	//!nletor
@@ -3152,7 +3182,7 @@ Mac802_11::recvACK(Packet *p)
 
 	tx_resume();
 
-	mac_log(p);
+	if (p_ack == 0 ) mac_log(p);
 
   tx_control_state_ = TX_CONTROL_IDLE;
   //uptarget_->recv(p->copy(), (Handler*) 0);

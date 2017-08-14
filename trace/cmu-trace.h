@@ -142,6 +142,7 @@ private:
 
         void    nam_format(Packet *p, int offset);
 
+	const char*	ptype_to_string(Packet *p);
 	void	format_phy(Packet *p, int offset);
 	
 	void	format_mac_common(Packet *p, const char *why, int offset);

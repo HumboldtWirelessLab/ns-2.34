@@ -313,8 +313,14 @@ public:
 	}
 
 	inline u_int32_t getHdrLen11() {
+		printf("PLCP: %d Offset: %d  FCS: %d\n", getPLCPhdrLen(), offsetof(struct hdr_mac802_11, dh_body[0]),
+		                                         ETHER_FCS_LEN);
 		return(getPLCPhdrLen() + offsetof(struct hdr_mac802_11, dh_body[0])
                        + ETHER_FCS_LEN);
+	}
+
+	inline u_int32_t getHdrLen11_click(bool set_fcs) {
+		return(getPLCPhdrLen() + sizeof(click_wifi) + (set_fcs?ETHER_FCS_LEN:0));
 	}
 
 	inline u_int32_t getRTSlen() {

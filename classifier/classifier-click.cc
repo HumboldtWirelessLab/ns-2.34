@@ -55,6 +55,7 @@
 #include "clicknode.h"
 #include "address.h"
 #include <click/simclick.h>
+#include <clicknet/llc.h>
 #include "scheduler.h"
 #include "classifier-click.h"
 #include "ll-ext.h"
@@ -737,6 +738,9 @@ ClickClassifier::MakeRawPacket(int type,int ifid,const unsigned char* data,
   chdr->iface() = ifid;
   chdr->ptype() = PT_RAW;
   chdr->size() = len;
+  printf("RawSize: %d (cwe: %d/cw: %d/cllc: %d)\n", len, sizeof(click_wifi_extra),
+                                                         sizeof(click_wifi),
+                                                         sizeof(click_llc));
   if (pinfo->id >= 0) {
     chdr->uid() = pinfo->id;
   }
@@ -774,6 +778,7 @@ ClickClassifier::MakeRawPacket(int type,int ifid,const unsigned char* data,
       chdr->size() -= NS_ETHER_HEADER_SIZE;
     } else if (hdr_raw::MADWIFI == rhdr->subtype) {	
 	  // nsmadwifi
+		printf("Its madwifi, so reduce size: %d -> %d\n",chdr->size(),chdr->size()-sizeof(click_wifi_extra));
 		chdr->size() -= sizeof(click_wifi_extra);
 		chdr->size() -= sizeof(click_wifi);
     }
