@@ -313,8 +313,10 @@ public:
 	}
 
 	inline u_int32_t getHdrLen11() {
+#ifdef BRN_DEBUG
 		printf("PLCP: %d Offset: %d  FCS: %d\n", getPLCPhdrLen(), offsetof(struct hdr_mac802_11, dh_body[0]),
 		                                         ETHER_FCS_LEN);
+#endif
 		return(getPLCPhdrLen() + offsetof(struct hdr_mac802_11, dh_body[0])
                        + ETHER_FCS_LEN);
 	}

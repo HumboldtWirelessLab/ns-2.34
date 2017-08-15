@@ -1788,10 +1788,14 @@ Mac802_11::sendDATA(Packet *p)
 	 */
 	click_wifi_extra* ceh = getWifiExtra(p);
 	if (rhdr->subtype == hdr_raw::MADWIFI) {
+#ifdef BRN_DEBUG
 		printf("SendData: %d %d\n",ch->size(),phymib_.getHdrLen11_click(true));
+#endif
 		ch->size() += phymib_.getHdrLen11_click(true);
 	} else {
+#ifdef BRN_DEBUG
 		printf("SendData: %d %d\n",ch->size(),phymib_.getHdrLen11());
+#endif
 		ch->size() += phymib_.getHdrLen11();
 	}
 
@@ -1815,7 +1819,9 @@ Mac802_11::sendDATA(Packet *p)
 	dh->dh_fc.fc_wep        = 0;
 	dh->dh_fc.fc_order      = 0;
 
+#ifdef BRN_DEBUG
 	printf("SendDataTxSize: %d\n",ch->size());
+#endif
 	/* store data tx time */
  	ch->txtime() = txtime(ch->size(), dataRate_);
 	p->txinfo_.setPrLevel(0);
@@ -2847,8 +2853,10 @@ Mac802_11::recvDATA(Packet *p)
 	 * off the mac header
 	 */
 	click_wifi_extra* rceh = getWifiExtra(p);
+#ifdef BRN_DEBUG
 	printf("hdr11: %d %d %lu\n", phymib_.getPLCPhdrLen(), offsetof(struct hdr_mac802_11, dh_body[0]), ETHER_FCS_LEN);
 	printf("Size: %d -> Size_madwifi: %ld\n",phymib_.getHdrLen11(), sizeof(click_wifi_extra));
+#endif
 	//ch->size() -= phymib_.getHdrLen11();
 	ch->num_forwards() += 1;
 
